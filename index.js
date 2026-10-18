@@ -6,8 +6,7 @@ const client = new Client({
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMembers,
         GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildMessageUpdates
+        GatewayIntentBits.MessageContent
     ],
 });
 
@@ -93,7 +92,7 @@ client.on(Events.GuildMemberRemove, (member) => {
 });
 
 client.on(Events.MessageDelete, (message) => {
-    if (message.author.bot) return;
+    if (message.author.bot || !message.guild) return;
     // Log message supprimé
     const deleteEmbed = new EmbedBuilder()
         .setColor('#F39C12')
@@ -105,7 +104,7 @@ client.on(Events.MessageDelete, (message) => {
 });
 
 client.on(Events.MessageCreate, async (message) => {
-    if (message.author.bot) return;
+    if (message.author.bot || !message.guild) return;
 
     const isStaff = message.member.roles.cache.some(role => staffRoles.includes(role.name));
 
