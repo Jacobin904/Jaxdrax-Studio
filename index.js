@@ -57,7 +57,7 @@ client.on(Events.GuildMemberAdd, async (member) => {
         const welcomeEmbed = new EmbedBuilder()
             .setColor('#F9E79F')
             .setTitle('Welcome to Your Fish Life!')
-            .setDescription(`Hello ${member}, welcome to the official Jaxdrax Studio server! Please read the rules in the rules channel and enjoy your stay.`)
+            .setDescription(`Hello <@${member.user.id}> (${member.user.username}, ${member.user.id}), welcome to the official Jaxdrax Studio server! Please read the rules in the rules channel and enjoy your stay.`)
             .setTimestamp();
         await channel.send({ embeds: [welcomeEmbed] });
     }
@@ -74,7 +74,7 @@ client.on(Events.GuildMemberAdd, async (member) => {
     const joinEmbed = new EmbedBuilder()
         .setColor('#2ECC71')
         .setTitle('Member Joined')
-        .setDescription(`${member.user.tag} has joined the server.`)
+        .setDescription(`<@${member.user.id}> (${member.user.username}, ${member.user.id}) has joined the server.`)
         .setThumbnail(member.user.displayAvatarURL())
         .setTimestamp();
     sendDevLog(joinEmbed);
@@ -85,7 +85,7 @@ client.on(Events.GuildMemberRemove, (member) => {
     const leaveEmbed = new EmbedBuilder()
         .setColor('#E74C3C')
         .setTitle('Member Left')
-        .setDescription(`${member.user.tag} has left the server or was banned.`)
+        .setDescription(`<@${member.user.id}> (${member.user.username}, ${member.user.id}) has left the server or was banned.`)
         .setThumbnail(member.user.displayAvatarURL())
         .setTimestamp();
     sendDevLog(leaveEmbed);
@@ -97,7 +97,7 @@ client.on(Events.MessageDelete, (message) => {
     const deleteEmbed = new EmbedBuilder()
         .setColor('#F39C12')
         .setTitle('Message Deleted')
-        .setDescription(`A message by ${message.author.tag} was deleted in ${message.channel}.`)
+        .setDescription(`A message by <@${message.author.id}> (${message.author.username}, ${message.author.id}) was deleted in <#${message.channel.id}>.`)
         .addFields({ name: 'Content', value: message.content || 'No text content' })
         .setTimestamp();
     sendDevLog(deleteEmbed);
@@ -181,9 +181,9 @@ client.on(Events.MessageCreate, async (message) => {
                 const ticketWelcomeEmbed = new EmbedBuilder()
                     .setColor('#2ECC71')
                     .setTitle('Support Ticket Opened')
-                    .setDescription(`Hello ${message.author}, a staff member will assist you shortly.`)
+                    .setDescription(`Hello <@${message.author.id}> (${message.author.username}, ${message.author.id}), a staff member will assist you shortly.`)
                     .setTimestamp();
-                await newChannel.send({ content: `${message.author}`, embeds: [ticketWelcomeEmbed] });
+                await newChannel.send({ content: `<@${message.author.id}>`, embeds: [ticketWelcomeEmbed] });
             } catch (error) {
                 console.error('Failed to create ticket channel:', error);
                 await message.reply('An error occurred while creating the ticket.');
