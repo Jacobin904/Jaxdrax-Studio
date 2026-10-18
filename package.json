@@ -1,0 +1,16 @@
+{
+  "name": "jaxdrax-studio-bot",
+  "version": "1.0.0",
+  "description": "Discord bot for Your Fish Life by Jaxdrax Studio",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.15.3",
+    "dotenv": "^16.4.5"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
