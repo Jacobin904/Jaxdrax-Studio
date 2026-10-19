@@ -217,7 +217,6 @@ client.on(Events.MessageCreate, async (message) => {
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
-    // Gestion des boutons
     if (interaction.isButton()) {
         if (interaction.customId === 'open_ticket') {
             const ticketChannelName = `ticket-${interaction.user.username}`.toLowerCase().replace(/[^a-z0-9-]/g, '');
@@ -315,29 +314,45 @@ client.on(Events.InteractionCreate, async (interaction) => {
         if (interaction.customId === 'delete_ticket') {
             await interaction.deferUpdate();
             
-            const messages = await interaction.channel.messages.fetch({ limit: 100 });
-            let transcript = `Transcript for ${interaction.channel.name}\n\n`;
-            messages.reverse().forEach(msg => {
-                transcript += `[${msg.createdAt.toISOString()}] ${msg.author.tag}: ${msg.content || '(embed/attachment)'}\n`;
-            });
-            
-            const transcriptChannelId = process.env.TICKET_TRANSCRIPTS_CHANNEL_ID;
-            if (transcriptChannelId) {
-                const transcriptChannel = interaction.client.channels.cache.get(transcriptChannelId);
-                if (transcriptChannel) {
-                    const buffer = Buffer.from(transcript, 'utf-8');
-                    await transcriptChannel.send({ 
-                        content: `Transcript for ${interaction.channel.name}`,
-                        files: [{ attachment: buffer, name: `${interaction.channel.name}.txt` }] 
-                    });
+            try {
+                const messages = await interaction.channel.messages.fetch({ limit: 100 });
+                let transcript = `Transcript for ${interaction.channel.name}\n\n`;
+                
+                // CORRECTION : Tri correct des messages du plus ancien au plus récent
+                const sortedMessages = Array.from(messages.values()).sort((a, b) => a.createdTimestamp - b.createdTimestamp);
+                
+                for (const msg of sortedMessages) {
+                    transcript += `[${msg.createdAt.toISOString()}] ${msg.author.tag}: ${msg.content || '(embed/attachment)'}\n`;
+                }
+                
+                const transcriptChannelId = process.env.TICKET_TRANSCRIPTS_CHANNEL_ID;
+                if (transcriptChannelId) {
+                    const transcriptChannel = interaction.client.channels.cache.get(transcriptChannelId);
+                    if (transcriptChannel) {
+                        const buffer = Buffer.from(transcript, 'utf-8');
+                        await transcriptChannel.send({ 
+                            content: `Transcript for ${interaction.channel.name}`,
+                            files: [{ attachment: buffer, name: `${interaction.channel.name}.txt` }] 
+                        });
+                    } else {
+                        console.error('Transcript channel not found in cache. Make sure the bot has access to it.');
+                    }
+                } else {
+                    console.error('TICKET_TRANSCRIPTS_CHANNEL_ID is not set in environment variables.');
+                }
+                
+                await interaction.channel.delete('Ticket closed and transcript saved');
+            } catch (error) {
+                console.error('Error during ticket deletion:', error);
+                try {
+                    await interaction.channel.delete('Ticket closed (transcript failed)');
+                } catch (deleteError) {
+                    console.error('Failed to delete channel:', deleteError);
                 }
             }
-            
-            await interaction.channel.delete('Ticket closed and transcript saved');
         }
     }
 
-    // Gestion des fenêtres pop-up (Modals)
     if (interaction.isModalSubmit() && interaction.customId === 'close_ticket_modal') {
         const reason = interaction.fields.getTextInputValue('reason') || 'No reason provided.';
         
