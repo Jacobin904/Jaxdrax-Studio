@@ -249,18 +249,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
                     reason: `Support ticket created by ${interaction.user.tag}`
                 });
 
-                try {
-                    await interaction.user.send(`Your ticket has been created: ${newChannel}`);
-                    await interaction.reply({ content: 'Your ticket has been created. A confirmation was sent to your DMs.', flags: MessageFlags.Ephemeral });
-                } catch (dmError) {
-                    await interaction.reply({ content: `Your ticket has been created: ${newChannel}`, flags: MessageFlags.Ephemeral });
-                }
-                
-                const ticketWelcomeEmbed = new EmbedBuilder()
-                    .setColor('#2ECC71')
-                    .setTitle('Support Ticket Opened')
-                    .setDescription(`Hello <@${interaction.user.id}> (${interaction.user.username}, ${interaction.user.id}), a staff member will assist you shortly. Please describe your issue in detail.`)
-                    .setTimestamp();
+                const welcomeMessage = `Hello <@${interaction.user.id}> (${interaction.user.username}, ${interaction.user.id}), a staff member will assist you shortly. Please describe your issue in detail.`;
                 
                 const closeBtn = new ButtonBuilder()
                     .setCustomId('close_ticket')
@@ -268,7 +257,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
                     .setStyle(ButtonStyle.Danger);
                 const row = new ActionRowBuilder().addComponents(closeBtn);
                 
-                await newChannel.send({ content: `<@${interaction.user.id}>`, embeds: [ticketWelcomeEmbed], components: [row] });
+                await newChannel.send({ content: welcomeMessage, components: [row] });
+
+                try {
+                    await interaction.user.send(`Your ticket has been created: ${newChannel}`);
+                    await interaction.reply({ content: 'Your ticket has been created. A confirmation was sent to your DMs.', flags: MessageFlags.Ephemeral });
+                } catch (dmError) {
+                    await interaction.reply({ content: `Your ticket has been created: ${newChannel}`, flags: MessageFlags.Ephemeral });
+                }
             } catch (error) {
                 console.error('Failed to create ticket channel:', error);
                 await interaction.reply({ content: 'An error occurred while creating the ticket.', flags: MessageFlags.Ephemeral });
@@ -301,11 +297,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 });
             }
             
-            const reopenEmbed = new EmbedBuilder()
-                .setColor('#2ECC71')
-                .setTitle('Ticket Reopened')
-                .setDescription(`This ticket has been reopened by <@${interaction.user.id}> (${interaction.user.username}, ${interaction.user.id}).`)
-                .setTimestamp();
+            const reopenMessage = `This ticket has been reopened by <@${interaction.user.id}> (${interaction.user.username}, ${interaction.user.id}).`;
                 
             const closeBtn = new ButtonBuilder()
                 .setCustomId('close_ticket')
@@ -313,7 +305,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 .setStyle(ButtonStyle.Danger);
             const row = new ActionRowBuilder().addComponents(closeBtn);
             
-            await interaction.channel.send({ embeds: [reopenEmbed], components: [row] });
+            await interaction.channel.send({ content: reopenMessage, components: [row] });
             
             try {
                 await interaction.user.send('The ticket has been reopened.');
@@ -375,12 +367,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
             });
         }
         
-        const closeEmbed = new EmbedBuilder()
-            .setColor('#E74C3C')
-            .setTitle('Ticket Closed')
-            .setDescription(`This ticket has been closed by <@${interaction.user.id}> (${interaction.user.username}, ${interaction.user.id}).`)
-            .addFields({ name: 'Reason', value: reason })
-            .setTimestamp();
+        const closeMessage = `This ticket has been closed by <@${interaction.user.id}> (${interaction.user.username}, ${interaction.user.id}).\n**Reason:** ${reason}`;
             
         const reopenBtn = new ButtonBuilder()
             .setCustomId('reopen_ticket')
@@ -392,7 +379,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
             .setStyle(ButtonStyle.Danger);
         const row = new ActionRowBuilder().addComponents(reopenBtn, deleteBtn);
         
-        await interaction.channel.send({ embeds: [closeEmbed], components: [row] });
+        await interaction.channel.send({ content: closeMessage, components: [row] });
         
         try {
             await interaction.user.send(`The ticket has been closed successfully.\nReason: ${reason}`);
