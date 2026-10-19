@@ -25,16 +25,14 @@ const client = new Client({
 
 const staffRoles = ['Game Direction', 'Admin', 'Moderator', 'Developer'];
 
-// Palette de couleurs officielle
 const COLORS = {
-    dark: '#242120',
+    light: '#fbf7f7',
     gray: '#a49f9e',
     red: '#cf0d0e',
     darkRed: '#6c0b0d',
-    light: '#fbf7f7'
+    dark: '#242120'
 };
 
-// URL du logo (Pense à la remplacer par un lien permanent GitHub si le lien Discord expire)
 const LOGO_URL = 'https://media.discordapp.net/attachments/1561478676850151638/1561543957790330900/q1401r6.png?ex=6ad6bca3&is=6ad56b23&hm=e061b0defbc9b679db94772c199cdb7e9599ceefdbf1b7107430e2a99ffe8991&animated=true';
 
 async function sendDevLog(embed) {
@@ -229,7 +227,7 @@ client.on(Events.MessageCreate, async (message) => {
             const instructionEmbed = new EmbedBuilder()
                 .setColor(COLORS.gray)
                 .setTitle('Ticket Instructions')
-                .setDescription('Please use the "Open Ticket" button in the designated support channel to create a ticket.')
+                .setDescription('Please use the Open Ticket button in the designated support channel to create a ticket.')
                 .setThumbnail(LOGO_URL)
                 .setTimestamp();
             await message.reply({ embeds: [instructionEmbed] });
