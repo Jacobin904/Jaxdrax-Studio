@@ -4,11 +4,12 @@
   "description": "Discord bot for Your Fish Life by Jaxdrax Studio",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "pm2-runtime start index.js"
   },
   "dependencies": {
     "discord.js": "^14.15.3",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "pm2": "^5.3.1"
   },
   "engines": {
     "node": ">=20.0.0"
