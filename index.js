@@ -10,7 +10,8 @@ const {
     ButtonStyle,
     ModalBuilder,
     TextInputBuilder,
-    TextInputStyle
+    TextInputStyle,
+    MessageFlags
 } = require('discord.js');
 
 const client = new Client({
@@ -223,7 +224,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
             const existingChannel = interaction.guild.channels.cache.find(c => c.name === ticketChannelName);
             
             if (existingChannel) {
-                return interaction.reply({ content: 'You already have an open ticket. Please check your channel list on the left.', ephemeral: true });
+                return interaction.reply({ content: 'You already have an open ticket. Please check your channel list on the left.', flags: MessageFlags.Ephemeral });
             }
 
             const modRole = interaction.guild.roles.cache.find(r => r.name === 'Moderator');
@@ -248,7 +249,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
                     reason: `Support ticket created by ${interaction.user.tag}`
                 });
 
-                await interaction.reply({ content: `Your ticket has been created: ${newChannel}`, ephemeral: true });
+                try {
+                    await interaction.user.send(`Your ticket has been created: ${newChannel}`);
+                    await interaction.reply({ content: 'Your ticket has been created. A confirmation was sent to your DMs.', flags: MessageFlags.Ephemeral });
+                } catch (dmError) {
+                    await interaction.reply({ content: `Your ticket has been created: ${newChannel}`, flags: MessageFlags.Ephemeral });
+                }
                 
                 const ticketWelcomeEmbed = new EmbedBuilder()
                     .setColor('#2ECC71')
@@ -265,7 +271,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 await newChannel.send({ content: `<@${interaction.user.id}>`, embeds: [ticketWelcomeEmbed], components: [row] });
             } catch (error) {
                 console.error('Failed to create ticket channel:', error);
-                await interaction.reply({ content: 'An error occurred while creating the ticket.', ephemeral: true });
+                await interaction.reply({ content: 'An error occurred while creating the ticket.', flags: MessageFlags.Ephemeral });
             }
         }
 
@@ -308,7 +314,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
             const row = new ActionRowBuilder().addComponents(closeBtn);
             
             await interaction.channel.send({ embeds: [reopenEmbed], components: [row] });
-            await interaction.reply({ content: 'The ticket has been reopened.', ephemeral: true });
+            
+            try {
+                await interaction.user.send('The ticket has been reopened.');
+                await interaction.reply({ content: 'Confirmation sent to your DMs.', flags: MessageFlags.Ephemeral });
+            } catch (dmError) {
+                await interaction.reply({ content: 'The ticket has been reopened.', flags: MessageFlags.Ephemeral });
+            }
         }
 
         if (interaction.customId === 'delete_ticket') {
@@ -318,7 +330,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 const messages = await interaction.channel.messages.fetch({ limit: 100 });
                 let transcript = `Transcript for ${interaction.channel.name}\n\n`;
                 
-                // CORRECTION : Tri correct des messages du plus ancien au plus récent
                 const sortedMessages = Array.from(messages.values()).sort((a, b) => a.createdTimestamp - b.createdTimestamp);
                 
                 for (const msg of sortedMessages) {
@@ -382,7 +393,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const row = new ActionRowBuilder().addComponents(reopenBtn, deleteBtn);
         
         await interaction.channel.send({ embeds: [closeEmbed], components: [row] });
-        await interaction.reply({ content: 'The ticket has been closed successfully.', ephemeral: true });
+        
+        try {
+            await interaction.user.send(`The ticket has been closed successfully.\nReason: ${reason}`);
+            await interaction.reply({ content: 'Confirmation sent to your DMs.', flags: MessageFlags.Ephemeral });
+        } catch (dmError) {
+            await interaction.reply({ content: 'The ticket has been closed successfully.', flags: MessageFlags.Ephemeral });
+        }
     }
 });
 
