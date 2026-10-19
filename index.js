@@ -1,5 +1,14 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Events, EmbedBuilder, ChannelType } = require('discord.js');
+const { 
+    Client, 
+    GatewayIntentBits, 
+    Events, 
+    EmbedBuilder, 
+    ChannelType, 
+    ActionRowBuilder, 
+    ButtonBuilder, 
+    ButtonStyle 
+} = require('discord.js');
 
 const client = new Client({
     intents: [
@@ -43,7 +52,7 @@ client.once(Events.ClientReady, (c) => {
     const startupEmbed = new EmbedBuilder()
         .setColor('#2ECC71')
         .setTitle('Bot Online')
-        .setDescription(`Jaxdrax Studio Bot is now online and connected as ${c.user.tag}.`)
+        .setDescription(`Jaxdrax Studio Bot is now online and connected as ${c.user.tag}. Monitoring all channels.`)
         .setTimestamp();
     sendDevLog(startupEmbed);
 });
@@ -63,14 +72,9 @@ client.on(Events.GuildMemberAdd, async (member) => {
     }
 
     if (roleId) {
-        try {
-            await member.roles.add(roleId);
-        } catch (error) {
-            console.error('Failed to add role:', error);
-        }
+        try { await member.roles.add(roleId); } catch (error) { console.error('Failed to add role:', error); }
     }
     
-    // Log membre qui rejoint
     const joinEmbed = new EmbedBuilder()
         .setColor('#2ECC71')
         .setTitle('Member Joined')
@@ -81,7 +85,6 @@ client.on(Events.GuildMemberAdd, async (member) => {
 });
 
 client.on(Events.GuildMemberRemove, (member) => {
-    // Log membre qui part ou est banni
     const leaveEmbed = new EmbedBuilder()
         .setColor('#E74C3C')
         .setTitle('Member Left')
@@ -93,7 +96,6 @@ client.on(Events.GuildMemberRemove, (member) => {
 
 client.on(Events.MessageDelete, (message) => {
     if (message.author.bot || !message.guild) return;
-    // Log message supprimé
     const deleteEmbed = new EmbedBuilder()
         .setColor('#F39C12')
         .setTitle('Message Deleted')
@@ -103,9 +105,23 @@ client.on(Events.MessageDelete, (message) => {
     sendDevLog(deleteEmbed);
 });
 
+// NOUVEAU : Surveillance des modifications de messages
+client.on(Events.MessageUpdate, (oldMessage, newMessage) => {
+    if (oldMessage.author.bot || !oldMessage.guild || oldMessage.content === newMessage.content) return;
+    const editEmbed = new EmbedBuilder()
+        .setColor('#9B59B6')
+        .setTitle('Message Edited')
+        .setDescription(`A message by <@${oldMessage.author.id}> (${oldMessage.author.username}, ${oldMessage.author.id}) was edited in <#${oldMessage.channel.id}>.`)
+        .addFields(
+            { name: 'Before', value: oldMessage.content || 'No text content' },
+            { name: 'After', value: newMessage.content || 'No text content' }
+        )
+        .setTimestamp();
+    sendDevLog(editEmbed);
+});
+
 client.on(Events.MessageCreate, async (message) => {
     if (message.author.bot || !message.guild) return;
-
     const isStaff = message.member.roles.cache.some(role => staffRoles.includes(role.name));
 
     if (message.content === '!ping') {
@@ -117,16 +133,76 @@ client.on(Events.MessageCreate, async (message) => {
             const fullRulesEmbed = new EmbedBuilder()
                 .setColor('#E74C3C')
                 .setTitle('Complete Server Rules')
-                .setDescription('1. Respect Everyone\n2. No Spam or Self Promotion\n3. Keep Channels Organized\n4. No Exploits or Cheating\n5. Follow Discord Terms of Service\n6. Staff Decisions are Final')
+                .setDescription('Official regulations for the Your Fish Life community. All members must comply.')
+                .addFields(
+                    { name: '1. Respect Everyone', value: 'Treat all members and staff with respect. Harassment, hate speech, or discrimination of any kind will result in an immediate ban.' },
+                    { name: '2. No Spam or Self Promotion', value: 'Do not spam messages, excessive caps, or advertise other Discord servers, Roblox games, or external links without explicit permission.' },
+                    { name: '3. Keep Channels Organized', value: 'Post content in the appropriate channels. Use bug-reports for technical issues, suggestions for game ideas, and general-chat for casual conversation.' },
+                    { name: '4. No Exploits or Cheating', value: 'Discussing, sharing, or promoting exploits, cheats, or game-breaking glitches is strictly forbidden and will result in a permanent ban.' },
+                    { name: '5. Follow Discord Terms of Service', value: 'All users must comply with the official Discord Community Guidelines and Terms of Service at all times.' },
+                    { name: '6. Staff Decisions are Final', value: 'If you disagree with a moderation action, please open a ticket. Do not argue with staff members in public channels.' }
+                )
+                .setFooter({ text: 'Jaxdrax Studio Management' })
                 .setTimestamp();
-            await message.reply({ embeds: [fullRulesEmbed] });
+            await message.channel.send({ embeds: [fullRulesEmbed] });
         } else {
             const basicRulesEmbed = new EmbedBuilder()
                 .setColor('#E74C3C')
                 .setTitle('Server Rules')
-                .setDescription('Please make sure to read and follow all rules in the rules channel.')
+                .setDescription('Please make sure to read and follow all rules in the rules channel. Failure to comply may result in a mute or ban.')
                 .setTimestamp();
             await message.reply({ embeds: [basicRulesEmbed] });
+        }
+    }
+
+    if (message.content === '!info') {
+        if (isStaff) {
+            const fullInfoEmbed = new EmbedBuilder()
+                .setColor('#006064')
+                .setTitle('Your Fish Life - Complete Game Information')
+                .setDescription('Comprehensive details regarding the development and status of the Your Fish Life Roblox experience.')
+                .addFields(
+                    { name: 'Developer', value: 'Jaxdrax Studio' },
+                    { name: 'Current Status', value: 'Active Development' },
+                    { name: 'Core Features', value: 'Aquarium building, fish species discovery, community relaxation, and regular content updates.' },
+                    { name: 'Support', value: 'Use the !ticket command or visit the help-desk channel for assistance.' }
+                )
+                .setFooter({ text: 'Jaxdrax Studio Development Team' })
+                .setTimestamp();
+            await message.channel.send({ embeds: [fullInfoEmbed] });
+        } else {
+            const basicInfoEmbed = new EmbedBuilder()
+                .setColor('#006064')
+                .setTitle('Your Fish Life - Game Info')
+                .setDescription('Your Fish Life is an upcoming Roblox experience developed by Jaxdrax Studio.')
+                .addFields(
+                    { name: 'Developer', value: 'Jaxdrax Studio' },
+                    { name: 'Status', value: 'Currently in Development' }
+                )
+                .setTimestamp();
+            await message.reply({ embeds: [basicInfoEmbed] });
+        }
+    }
+
+    if (message.content === '!ticket') {
+        if (isStaff) {
+            const ticketPanelEmbed = new EmbedBuilder()
+                .setColor('#3498DB')
+                .setTitle('Support Ticket System')
+                .setDescription('Welcome to the official support system. If you need assistance from the Jaxdrax Studio team, please click the button below to open a private ticket channel.')
+                .setFooter({ text: 'Your Fish Life Support' })
+                .setTimestamp();
+            
+            const button = new ButtonBuilder()
+                .setCustomId('open_ticket')
+                .setLabel('Open Ticket')
+                .setStyle(ButtonStyle.Primary);
+            
+            const row = new ActionRowBuilder().addComponents(button);
+            
+            await message.channel.send({ embeds: [ticketPanelEmbed], components: [row] });
+        } else {
+            await message.reply('Please use the "Open Ticket" button in the designated support channel to create a ticket.');
         }
     }
 
@@ -138,70 +214,59 @@ client.on(Events.MessageCreate, async (message) => {
                 { name: '!ping', value: 'Check bot latency.' },
                 { name: '!rules', value: 'View server rules.' },
                 { name: '!info', value: 'Game information.' },
-                { name: '!ticket', value: 'Open a support ticket.' }
+                { name: '!ticket', value: 'Display the ticket panel (Staff) or get instructions (Members).' }
             )
             .setTimestamp();
         await message.reply({ embeds: [helpEmbed] });
     }
+});
 
-    if (message.content === '!ticket') {
-        if (isStaff) {
-            const ticketPanelEmbed = new EmbedBuilder()
-                .setColor('#3498DB')
-                .setTitle('Support Ticket System')
-                .setDescription('Type `!ticket` to create a private support channel.')
-                .setTimestamp();
-            await message.channel.send({ embeds: [ticketPanelEmbed] });
-        } else {
-            const ticketChannelName = `ticket-${message.author.username}`.toLowerCase().replace(/[^a-z0-9-]/g, '');
-            const existingChannel = message.guild.channels.cache.find(c => c.name === ticketChannelName);
-            if (existingChannel) return message.reply('You already have an open ticket.');
+// NOUVEAU : Gestion des interactions (clics sur les boutons)
+client.on(Events.InteractionCreate, async (interaction) => {
+    if (!interaction.isButton()) return;
 
-            const modRole = message.guild.roles.cache.find(r => r.name === 'Moderator');
-            const adminRole = message.guild.roles.cache.find(r => r.name === 'Admin');
-            const gdRole = message.guild.roles.cache.find(r => r.name === 'Game Direction');
-
-            const permissionOverwrites = [
-                { id: message.guild.id, deny: ['ViewChannel'] },
-                { id: message.author.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'] }
-            ];
-            if (modRole) permissionOverwrites.push({ id: modRole.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'] });
-            if (adminRole) permissionOverwrites.push({ id: adminRole.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'] });
-            if (gdRole) permissionOverwrites.push({ id: gdRole.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'] });
-
-            try {
-                const newChannel = await message.guild.channels.create({
-                    name: ticketChannelName,
-                    type: ChannelType.GuildText,
-                    permissionOverwrites: permissionOverwrites,
-                    reason: `Support ticket created by ${message.author.tag}`
-                });
-                await message.reply(`Your ticket has been created: ${newChannel}`);
-                
-                const ticketWelcomeEmbed = new EmbedBuilder()
-                    .setColor('#2ECC71')
-                    .setTitle('Support Ticket Opened')
-                    .setDescription(`Hello <@${message.author.id}> (${message.author.username}, ${message.author.id}), a staff member will assist you shortly.`)
-                    .setTimestamp();
-                await newChannel.send({ content: `<@${message.author.id}>`, embeds: [ticketWelcomeEmbed] });
-            } catch (error) {
-                console.error('Failed to create ticket channel:', error);
-                await message.reply('An error occurred while creating the ticket.');
-            }
+    if (interaction.customId === 'open_ticket') {
+        const ticketChannelName = `ticket-${interaction.user.username}`.toLowerCase().replace(/[^a-z0-9-]/g, '');
+        const existingChannel = interaction.guild.channels.cache.find(c => c.name === ticketChannelName);
+        
+        if (existingChannel) {
+            return interaction.reply({ content: 'You already have an open ticket. Please check your channel list on the left.', ephemeral: true });
         }
-    }
 
-    if (message.content === '!info') {
-        const infoEmbed = new EmbedBuilder()
-            .setColor('#006064')
-            .setTitle('Your Fish Life - Game Info')
-            .setDescription('Your Fish Life is an upcoming Roblox experience developed by Jaxdrax Studio.')
-            .addFields(
-                { name: 'Developer', value: 'Jaxdrax Studio' },
-                { name: 'Status', value: 'Currently in Development' }
-            )
-            .setTimestamp();
-        await message.reply({ embeds: [infoEmbed] });
+        const modRole = interaction.guild.roles.cache.find(r => r.name === 'Moderator');
+        const adminRole = interaction.guild.roles.cache.find(r => r.name === 'Admin');
+        const gdRole = interaction.guild.roles.cache.find(r => r.name === 'Game Direction');
+
+        const permissionOverwrites = [
+            { id: interaction.guild.id, deny: ['ViewChannel'] },
+            { id: interaction.user.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'] }
+        ];
+        if (modRole) permissionOverwrites.push({ id: modRole.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'] });
+        if (adminRole) permissionOverwrites.push({ id: adminRole.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'] });
+        if (gdRole) permissionOverwrites.push({ id: gdRole.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'] });
+
+        try {
+            const newChannel = await interaction.guild.channels.create({
+                name: ticketChannelName,
+                type: ChannelType.GuildText,
+                parent: interaction.channel.parentId, // Crée le ticket dans la MEME catégorie
+                permissionOverwrites: permissionOverwrites,
+                reason: `Support ticket created by ${interaction.user.tag}`
+            });
+
+            await interaction.reply({ content: `Your ticket has been created: ${newChannel}`, ephemeral: true });
+            
+            const ticketWelcomeEmbed = new EmbedBuilder()
+                .setColor('#2ECC71')
+                .setTitle('Support Ticket Opened')
+                .setDescription(`Hello <@${interaction.user.id}> (${interaction.user.username}, ${interaction.user.id}), a staff member will assist you shortly. Please describe your issue in detail.`)
+                .setTimestamp();
+            
+            await newChannel.send({ content: `<@${interaction.user.id}>`, embeds: [ticketWelcomeEmbed] });
+        } catch (error) {
+            console.error('Failed to create ticket channel:', error);
+            await interaction.reply({ content: 'An error occurred while creating the ticket.', ephemeral: true });
+        }
     }
 });
 
