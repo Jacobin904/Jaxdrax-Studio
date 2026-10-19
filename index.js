@@ -7,7 +7,10 @@ const {
     ChannelType, 
     ActionRowBuilder, 
     ButtonBuilder, 
-    ButtonStyle 
+    ButtonStyle,
+    ModalBuilder,
+    TextInputBuilder,
+    TextInputStyle
 } = require('discord.js');
 
 const client = new Client({
@@ -21,21 +24,15 @@ const client = new Client({
 
 const staffRoles = ['Game Direction', 'Admin', 'Moderator', 'Developer'];
 
-// Fonction utilitaire pour envoyer les logs dans dev-logs
 async function sendDevLog(embed) {
     const channelId = process.env.DEV_LOGS_CHANNEL_ID;
     if (!channelId) return;
     const channel = client.channels.cache.get(channelId);
     if (channel) {
-        try {
-            await channel.send({ embeds: [embed] });
-        } catch (error) {
-            // Ignorer les erreurs pour éviter les boucles infinies
-        }
+        try { await channel.send({ embeds: [embed] }); } catch (error) {}
     }
 }
 
-// Intercepter les erreurs critiques pour les envoyer dans dev-logs
 const originalConsoleError = console.error;
 console.error = function(...args) {
     originalConsoleError.apply(console, args);
@@ -105,7 +102,6 @@ client.on(Events.MessageDelete, (message) => {
     sendDevLog(deleteEmbed);
 });
 
-// NOUVEAU : Surveillance des modifications de messages
 client.on(Events.MessageUpdate, (oldMessage, newMessage) => {
     if (oldMessage.author.bot || !oldMessage.guild || oldMessage.content === newMessage.content) return;
     const editEmbed = new EmbedBuilder()
@@ -199,7 +195,6 @@ client.on(Events.MessageCreate, async (message) => {
                 .setStyle(ButtonStyle.Primary);
             
             const row = new ActionRowBuilder().addComponents(button);
-            
             await message.channel.send({ embeds: [ticketPanelEmbed], components: [row] });
         } else {
             await message.reply('Please use the "Open Ticket" button in the designated support channel to create a ticket.');
@@ -221,52 +216,158 @@ client.on(Events.MessageCreate, async (message) => {
     }
 });
 
-// NOUVEAU : Gestion des interactions (clics sur les boutons)
 client.on(Events.InteractionCreate, async (interaction) => {
-    if (!interaction.isButton()) return;
+    // Gestion des boutons
+    if (interaction.isButton()) {
+        if (interaction.customId === 'open_ticket') {
+            const ticketChannelName = `ticket-${interaction.user.username}`.toLowerCase().replace(/[^a-z0-9-]/g, '');
+            const existingChannel = interaction.guild.channels.cache.find(c => c.name === ticketChannelName);
+            
+            if (existingChannel) {
+                return interaction.reply({ content: 'You already have an open ticket. Please check your channel list on the left.', ephemeral: true });
+            }
 
-    if (interaction.customId === 'open_ticket') {
-        const ticketChannelName = `ticket-${interaction.user.username}`.toLowerCase().replace(/[^a-z0-9-]/g, '');
-        const existingChannel = interaction.guild.channels.cache.find(c => c.name === ticketChannelName);
-        
-        if (existingChannel) {
-            return interaction.reply({ content: 'You already have an open ticket. Please check your channel list on the left.', ephemeral: true });
+            const modRole = interaction.guild.roles.cache.find(r => r.name === 'Moderator');
+            const adminRole = interaction.guild.roles.cache.find(r => r.name === 'Admin');
+            const gdRole = interaction.guild.roles.cache.find(r => r.name === 'Game Direction');
+
+            const permissionOverwrites = [
+                { id: interaction.guild.id, deny: ['ViewChannel'] },
+                { id: interaction.user.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'] }
+            ];
+            if (modRole) permissionOverwrites.push({ id: modRole.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'] });
+            if (adminRole) permissionOverwrites.push({ id: adminRole.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'] });
+            if (gdRole) permissionOverwrites.push({ id: gdRole.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'] });
+
+            try {
+                const newChannel = await interaction.guild.channels.create({
+                    name: ticketChannelName,
+                    type: ChannelType.GuildText,
+                    parent: interaction.channel.parentId,
+                    topic: `Ticket created by ${interaction.user.id}`,
+                    permissionOverwrites: permissionOverwrites,
+                    reason: `Support ticket created by ${interaction.user.tag}`
+                });
+
+                await interaction.reply({ content: `Your ticket has been created: ${newChannel}`, ephemeral: true });
+                
+                const ticketWelcomeEmbed = new EmbedBuilder()
+                    .setColor('#2ECC71')
+                    .setTitle('Support Ticket Opened')
+                    .setDescription(`Hello <@${interaction.user.id}> (${interaction.user.username}, ${interaction.user.id}), a staff member will assist you shortly. Please describe your issue in detail.`)
+                    .setTimestamp();
+                
+                const closeBtn = new ButtonBuilder()
+                    .setCustomId('close_ticket')
+                    .setLabel('Close Ticket')
+                    .setStyle(ButtonStyle.Danger);
+                const row = new ActionRowBuilder().addComponents(closeBtn);
+                
+                await newChannel.send({ content: `<@${interaction.user.id}>`, embeds: [ticketWelcomeEmbed], components: [row] });
+            } catch (error) {
+                console.error('Failed to create ticket channel:', error);
+                await interaction.reply({ content: 'An error occurred while creating the ticket.', ephemeral: true });
+            }
         }
 
-        const modRole = interaction.guild.roles.cache.find(r => r.name === 'Moderator');
-        const adminRole = interaction.guild.roles.cache.find(r => r.name === 'Admin');
-        const gdRole = interaction.guild.roles.cache.find(r => r.name === 'Game Direction');
-
-        const permissionOverwrites = [
-            { id: interaction.guild.id, deny: ['ViewChannel'] },
-            { id: interaction.user.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'] }
-        ];
-        if (modRole) permissionOverwrites.push({ id: modRole.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'] });
-        if (adminRole) permissionOverwrites.push({ id: adminRole.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'] });
-        if (gdRole) permissionOverwrites.push({ id: gdRole.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'] });
-
-        try {
-            const newChannel = await interaction.guild.channels.create({
-                name: ticketChannelName,
-                type: ChannelType.GuildText,
-                parent: interaction.channel.parentId, // Crée le ticket dans la MEME catégorie
-                permissionOverwrites: permissionOverwrites,
-                reason: `Support ticket created by ${interaction.user.tag}`
-            });
-
-            await interaction.reply({ content: `Your ticket has been created: ${newChannel}`, ephemeral: true });
+        if (interaction.customId === 'close_ticket') {
+            const modal = new ModalBuilder()
+                .setCustomId('close_ticket_modal')
+                .setTitle('Close Ticket');
             
-            const ticketWelcomeEmbed = new EmbedBuilder()
+            const reasonInput = new TextInputBuilder()
+                .setCustomId('reason')
+                .setLabel('Reason for closing (optional)')
+                .setStyle(TextInputStyle.Paragraph)
+                .setRequired(false);
+            
+            const row = new ActionRowBuilder().addComponents(reasonInput);
+            modal.addComponents(row);
+            await interaction.showModal(modal);
+        }
+
+        if (interaction.customId === 'reopen_ticket') {
+            const creatorId = interaction.channel.topic?.match(/\d{17,19}/)?.[0];
+            if (creatorId) {
+                await interaction.channel.permissionOverwrites.edit(creatorId, {
+                    ViewChannel: true,
+                    SendMessages: true,
+                    ReadMessageHistory: true
+                });
+            }
+            
+            const reopenEmbed = new EmbedBuilder()
                 .setColor('#2ECC71')
-                .setTitle('Support Ticket Opened')
-                .setDescription(`Hello <@${interaction.user.id}> (${interaction.user.username}, ${interaction.user.id}), a staff member will assist you shortly. Please describe your issue in detail.`)
+                .setTitle('Ticket Reopened')
+                .setDescription(`This ticket has been reopened by <@${interaction.user.id}> (${interaction.user.username}, ${interaction.user.id}).`)
                 .setTimestamp();
+                
+            const closeBtn = new ButtonBuilder()
+                .setCustomId('close_ticket')
+                .setLabel('Close Ticket')
+                .setStyle(ButtonStyle.Danger);
+            const row = new ActionRowBuilder().addComponents(closeBtn);
             
-            await newChannel.send({ content: `<@${interaction.user.id}>`, embeds: [ticketWelcomeEmbed] });
-        } catch (error) {
-            console.error('Failed to create ticket channel:', error);
-            await interaction.reply({ content: 'An error occurred while creating the ticket.', ephemeral: true });
+            await interaction.channel.send({ embeds: [reopenEmbed], components: [row] });
+            await interaction.reply({ content: 'The ticket has been reopened.', ephemeral: true });
         }
+
+        if (interaction.customId === 'delete_ticket') {
+            await interaction.deferUpdate();
+            
+            const messages = await interaction.channel.messages.fetch({ limit: 100 });
+            let transcript = `Transcript for ${interaction.channel.name}\n\n`;
+            messages.reverse().forEach(msg => {
+                transcript += `[${msg.createdAt.toISOString()}] ${msg.author.tag}: ${msg.content || '(embed/attachment)'}\n`;
+            });
+            
+            const transcriptChannelId = process.env.TICKET_TRANSCRIPTS_CHANNEL_ID;
+            if (transcriptChannelId) {
+                const transcriptChannel = interaction.client.channels.cache.get(transcriptChannelId);
+                if (transcriptChannel) {
+                    const buffer = Buffer.from(transcript, 'utf-8');
+                    await transcriptChannel.send({ 
+                        content: `Transcript for ${interaction.channel.name}`,
+                        files: [{ attachment: buffer, name: `${interaction.channel.name}.txt` }] 
+                    });
+                }
+            }
+            
+            await interaction.channel.delete('Ticket closed and transcript saved');
+        }
+    }
+
+    // Gestion des fenêtres pop-up (Modals)
+    if (interaction.isModalSubmit() && interaction.customId === 'close_ticket_modal') {
+        const reason = interaction.fields.getTextInputValue('reason') || 'No reason provided.';
+        
+        const creatorId = interaction.channel.topic?.match(/\d{17,19}/)?.[0];
+        if (creatorId) {
+            await interaction.channel.permissionOverwrites.edit(creatorId, {
+                ViewChannel: false,
+                SendMessages: false
+            });
+        }
+        
+        const closeEmbed = new EmbedBuilder()
+            .setColor('#E74C3C')
+            .setTitle('Ticket Closed')
+            .setDescription(`This ticket has been closed by <@${interaction.user.id}> (${interaction.user.username}, ${interaction.user.id}).`)
+            .addFields({ name: 'Reason', value: reason })
+            .setTimestamp();
+            
+        const reopenBtn = new ButtonBuilder()
+            .setCustomId('reopen_ticket')
+            .setLabel('Reopen Ticket')
+            .setStyle(ButtonStyle.Success);
+        const deleteBtn = new ButtonBuilder()
+            .setCustomId('delete_ticket')
+            .setLabel('Delete Permanently')
+            .setStyle(ButtonStyle.Danger);
+        const row = new ActionRowBuilder().addComponents(reopenBtn, deleteBtn);
+        
+        await interaction.channel.send({ embeds: [closeEmbed], components: [row] });
+        await interaction.reply({ content: 'The ticket has been closed successfully.', ephemeral: true });
     }
 });
 
