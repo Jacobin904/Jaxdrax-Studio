@@ -14,19 +14,17 @@ const {
     MessageFlags
 } = require('discord.js');
 
-// FILETS DE SÉCURITÉ POUR ÉVITER LES PLANTAGES SILINCIEUX
+// FILETS DE SÉCURITÉ POUR ÉVITER LES PLANTAGES SILENCIEUX
 process.on('unhandledRejection', error => {
     console.error('Erreur de promesse non gérée détectée:', error);
 });
 
 process.on('uncaughtException', error => {
     console.error('Exception non attrapée détectée:', error);
-    // On force la sortie pour que PM2 redémarre le bot proprement
     process.exit(1); 
 });
 
 const client = new Client({
-// ... (le reste de ton code index.js reste exactement le même que la version précédente)
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMembers,
@@ -516,3 +514,19 @@ client.on(Events.InteractionCreate, async (interaction) => {
 });
 
 client.login(process.env.DISCORD_TOKEN);
+
+// ==========================================================
+// SERVEUR DE SANTÉ (HEALTH CHECK) POUR CANNER ET UPTIMEROBOT
+// ==========================================================
+const http = require('http');
+const PORT = process.env.PORT || 3000;
+
+const server = http.createServer((req, res) => {
+    // Répondre "200 OK" pour tromper Canner et UptimeRobot
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('Jaxdrax Studio Bot is running smoothly');
+});
+
+server.listen(PORT, () => {
+    console.log(`Health check server is running on port ${PORT}`);
+});
