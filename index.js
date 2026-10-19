@@ -14,7 +14,19 @@ const {
     MessageFlags
 } = require('discord.js');
 
+// FILETS DE SÉCURITÉ POUR ÉVITER LES PLANTAGES SILINCIEUX
+process.on('unhandledRejection', error => {
+    console.error('Erreur de promesse non gérée détectée:', error);
+});
+
+process.on('uncaughtException', error => {
+    console.error('Exception non attrapée détectée:', error);
+    // On force la sortie pour que PM2 redémarre le bot proprement
+    process.exit(1); 
+});
+
 const client = new Client({
+// ... (le reste de ton code index.js reste exactement le même que la version précédente)
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMembers,
