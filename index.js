@@ -9,7 +9,7 @@ process.on('unhandledRejection', error => console.error('Unhandled rejection:', 
 process.on('uncaughtException', error => { console.error('Uncaught exception:', error); process.exit(1); });
 
 const client = new Client({
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildPresences, GatewayIntentBits.DirectMessages],
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildPresences, GatewayIntentBits.DirectMessages, GatewayIntentBits.DirectMessageReactions],
 });
 
 const staffRoles = ['Game Direction', 'Admin', 'Moderator', 'Developer', 'Staff Team'];
@@ -69,55 +69,27 @@ client.once(Events.ClientReady, (c) => {
 // SYSTÈME DE TICKET VIA DM
 // ==========================================================
 
-// Fonction pour trouver ou créer un salon de ticket DM pour un utilisateur
-async function getOrCreateDMTicketChannel(user, guild) {
-    const ticketChannelName = `dm-ticket-${user.username}`.toLowerCase().replace(/[^a-z0-9-]/g, '');
+// Stocker les salons de tickets DM actifs
+const dmTickets = new Map(); // userId -> channelId
+
+// Fonction pour trouver le salon de ticket DM d'un utilisateur
+function getDMTicketChannel(userId, guild) {
+    const channelId = dmTickets.get(userId);
+    if (channelId) {
+        const channel = guild.channels.cache.get(channelId);
+        if (channel) return channel;
+    }
     
-    // Vérifier si le salon existe déjà
-    const existingChannel = guild.channels.cache.find(c => 
+    // Chercher par nom si pas dans le cache
+    const ticketChannelName = `ticket-${client.users.cache.get(userId)?.username || 'unknown'}`.toLowerCase().replace(/[^a-z0-9-]/g, '');
+    return guild.channels.cache.find(c => 
         c.name === ticketChannelName && 
-        c.topic === `DM Ticket for ${user.id}`
+        c.topic?.startsWith(`DM Ticket for ${userId}`)
     );
-    
-    if (existingChannel) return existingChannel;
-    
-    // Créer un nouveau salon privé
-    const permissionOverwrites = [
-        { id: guild.id, deny: ['ViewChannel'] },
-    ];
-    
-    // Donner accès à tous les rôles staff
-    staffRoles.forEach(roleName => {
-        const role = guild.roles.cache.find(r => r.name === roleName);
-        if (role) permissionOverwrites.push({ id: role.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'] });
-    });
-    
-    const newChannel = await guild.channels.create({
-        name: ticketChannelName,
-        type: ChannelType.GuildText,
-        parent: process.env.DM_TICKET_CATEGORY_ID, // Catégorie optionnelle
-        topic: `DM Ticket for ${user.id}`,
-        permissionOverwrites: permissionOverwrites,
-        reason: `DM Ticket created for ${user.tag}`
-    });
-    
-    // Envoyer un message d'accueil dans le salon
-    const welcomeEmbed = new EmbedBuilder()
-        .setColor(COLORS.dark)
-        .setTitle('DM Ticket Opened')
-        .setDescription(`This is a private ticket channel for **${user.tag}** (${user.id}).\n\nAll messages sent by this user via DM will appear here. Use the buttons below to respond or close the ticket.`)
-        .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 1024 }))
-        .setFooter({ text: 'Jaxdrax Studio DM Support', iconURL: LOGO_URL })
-        .setTimestamp();
-    
-    await newChannel.send({ embeds: [welcomeEmbed] });
-    
-    return newChannel;
 }
 
 // Écouter les messages en DM
 client.on(Events.MessageCreate, async (message) => {
-    // Ignorer les messages du bot
     if (message.author.bot) return;
     
     // Gérer les messages en DM
@@ -127,67 +99,113 @@ client.on(Events.MessageCreate, async (message) => {
         
         if (!guild) return;
         
-        try {
-            // Obtenir ou créer le salon de ticket
-            const ticketChannel = await getOrCreateDMTicketChannel(user, guild);
-            
-            // Créer l'embed du message
-            const messageEmbed = new EmbedBuilder()
-                .setColor(COLORS.dark)
-                .setAuthor({ name: `${user.tag}`, iconURL: user.displayAvatarURL({ dynamic: true, size: 1024 }) })
-                .setDescription(message.content || '*No text content*')
-                .setFooter({ text: `User ID: ${user.id}` })
-                .setTimestamp();
-            
-            // Ajouter les pièces jointes si présentes
-            if (message.attachments.size > 0) {
-                const attachments = message.attachments.map(a => a.url).join('\n');
-                messageEmbed.addFields({ name: 'Attachments', value: attachments });
+        // Vérifier si l'utilisateur a déjà un ticket ouvert
+        const existingTicket = getDMTicketChannel(user.id, guild);
+        
+        if (existingTicket) {
+            // Ticket déjà ouvert, relayer le message
+            try {
+                const messageEmbed = new EmbedBuilder()
+                    .setColor(COLORS.dark)
+                    .setAuthor({ name: `${user.tag}`, iconURL: user.displayAvatarURL({ dynamic: true, size: 1024 }) })
+                    .setDescription(message.content || '*No text content*')
+                    .setFooter({ text: `User ID: ${user.id}` })
+                    .setTimestamp();
+                
+                if (message.attachments.size > 0) {
+                    const attachments = message.attachments.map(a => `[${a.name}](${a.url})`).join('\n');
+                    messageEmbed.addFields({ name: 'Attachments', value: attachments });
+                }
+                
+                const replyButton = new ButtonBuilder()
+                    .setCustomId(`dm_reply_${user.id}`)
+                    .setLabel('Reply')
+                    .setStyle(ButtonStyle.Primary);
+                
+                const closeButton = new ButtonBuilder()
+                    .setCustomId(`dm_close_${user.id}`)
+                    .setLabel('Close Ticket')
+                    .setStyle(ButtonStyle.Danger);
+                
+                const row = new ActionRowBuilder().addComponents(replyButton, closeButton);
+                
+                await existingTicket.send({ 
+                    embeds: [messageEmbed], 
+                    components: [row] 
+                });
+                
+                await message.react('✅');
+                
+            } catch (error) {
+                console.error('Error relaying DM message:', error);
             }
-            
-            // Créer les boutons
-            const replyButton = new ButtonBuilder()
-                .setCustomId(`dm_reply_${user.id}`)
-                .setLabel('Reply to User')
-                .setStyle(ButtonStyle.Primary);
-            
-            const closeButton = new ButtonBuilder()
-                .setCustomId(`dm_close_${user.id}`)
-                .setLabel('Close Ticket')
-                .setStyle(ButtonStyle.Danger);
-            
-            const row = new ActionRowBuilder().addComponents(replyButton, closeButton);
-            
-            // Envoyer le message dans le salon de ticket
-            const sentMessage = await ticketChannel.send({ 
-                embeds: [messageEmbed], 
-                components: [row] 
-            });
-            
-            // Ajouter une réaction de confirmation (crochet)
-            await sentMessage.react('✅');
-            
-            // Confirmer à l'utilisateur en DM que le message a été envoyé
-            const confirmationEmbed = new EmbedBuilder()
+        } else {
+            // Pas de ticket ouvert, demander confirmation
+            const confirmEmbed = new EmbedBuilder()
                 .setColor(COLORS.dark)
-                .setTitle('Message Sent')
-                .setDescription('Your message has been sent to the support team. A staff member will respond shortly.')
-                .setThumbnail(LOGO_URL)
+                .setTitle('DM Support System')
+                .setDescription(`Hello <@${user.id}>, welcome to the Jaxdrax Studio support system.\n\nWould you like to open a private support ticket? A staff member will assist you shortly.\n\n**What happens next:**\n• A private channel will be created on the server\n• Only you and the staff team will have access\n• You can continue this conversation via DM\n• All messages will be relayed securely`)
+                .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 1024 }))
                 .setFooter({ text: 'Jaxdrax Studio Support', iconURL: LOGO_URL })
                 .setTimestamp();
             
-            await message.reply({ embeds: [confirmationEmbed] });
+            const openButton = new ButtonBuilder()
+                .setCustomId(`dm_open_${user.id}`)
+                .setLabel('Open Ticket')
+                .setStyle(ButtonStyle.Success);
             
-        } catch (error) {
-            console.error('Error handling DM ticket:', error);
-            const errorEmbed = new EmbedBuilder()
-                .setColor(COLORS.red)
-                .setTitle('Error')
-                .setDescription('An error occurred while processing your message. Please try again later.')
-                .setThumbnail(LOGO_URL)
-                .setTimestamp();
+            const cancelButton = new ButtonBuilder()
+                .setCustomId(`dm_cancel_${user.id}`)
+                .setLabel('Cancel')
+                .setStyle(ButtonStyle.Secondary);
             
-            await message.reply({ embeds: [errorEmbed] });
+            const row = new ActionRowBuilder().addComponents(openButton, cancelButton);
+            
+            await message.reply({ 
+                embeds: [confirmEmbed], 
+                components: [row] 
+            });
+        }
+        
+        return;
+    }
+    
+    // Gérer les messages du staff dans les salons de tickets DM
+    if (message.guild && message.channel.topic?.startsWith('DM Ticket for ')) {
+        const userId = message.channel.topic.replace('DM Ticket for ', '');
+        
+        // Vérifier si le message vient d'un staff
+        const isStaff = message.member.roles.cache.some(role => staffRoles.includes(role.name));
+        
+        if (isStaff && !message.author.bot) {
+            try {
+                const user = await client.users.fetch(userId);
+                
+                const replyEmbed = new EmbedBuilder()
+                    .setColor(COLORS.gray)
+                    .setAuthor({ name: `${message.author.tag} (Staff)`, iconURL: message.author.displayAvatarURL({ dynamic: true, size: 1024 }) })
+                    .setDescription(message.content || '*No text content*')
+                    .setFooter({ text: 'Staff Response' })
+                    .setTimestamp();
+                
+                if (message.attachments.size > 0) {
+                    const attachments = message.attachments.map(a => `[${a.name}](${a.url})`).join('\n');
+                    replyEmbed.addFields({ name: 'Attachments', value: attachments });
+                }
+                
+                await user.send({ embeds: [replyEmbed] });
+                
+            } catch (error) {
+                console.error('Error sending staff reply to user:', error);
+                await message.reply({ 
+                    embeds: [new EmbedBuilder()
+                        .setColor(COLORS.red)
+                        .setTitle('Error')
+                        .setDescription('Failed to send message to user. They may have DMs disabled.')
+                        .setTimestamp()],
+                    flags: MessageFlags.Ephemeral
+                });
+            }
         }
         
         return;
@@ -206,7 +224,7 @@ client.on(Events.MessageCreate, async (message) => {
     }
 
     if (message.content === '!help') {
-        await message.reply({ embeds: [new EmbedBuilder().setColor(COLORS.dark).setTitle('Jaxdrax Studio Bot - Complete Help Menu').setDescription('Welcome to the official help menu for the Jaxdrax Studio Bot.\n\n**DM Support:** You can also contact the support team by sending a direct message to the bot. A private ticket will be created automatically.').addFields({ name: '!ping', value: 'Displays detailed performance metrics.' }, { name: '!rules', value: 'Shows the server rules.' }, { name: '!info', value: 'Provides information about Your Fish Life.' }, { name: '!ticket', value: 'Displays the ticket panel (Staff) or instructions (Members).' }, { name: '!config', value: 'Staff only. Sends full server configuration to your DMs.' }, { name: 'Direct Messages', value: 'Send a DM to the bot to open a private support ticket.' }).setThumbnail(LOGO_URL).setFooter({ text: 'Jaxdrax Studio Support', iconURL: LOGO_URL }).setTimestamp()] });
+        await message.reply({ embeds: [new EmbedBuilder().setColor(COLORS.dark).setTitle('Jaxdrax Studio Bot - Complete Help Menu').setDescription('Welcome to the official help menu for the Jaxdrax Studio Bot.\n\n**DM Support:** You can contact the support team by sending a direct message to the bot. A private ticket will be created automatically.').addFields({ name: '!ping', value: 'Displays detailed performance metrics.' }, { name: '!rules', value: 'Shows the server rules.' }, { name: '!info', value: 'Provides information about Your Fish Life.' }, { name: '!config', value: 'Staff only. Sends full server configuration to your DMs.' }, { name: 'Direct Messages', value: 'Send a DM to the bot to open a private support ticket.' }).setThumbnail(LOGO_URL).setFooter({ text: 'Jaxdrax Studio Support', iconURL: LOGO_URL }).setTimestamp()] });
     }
 
     if (message.content === '!config') {
@@ -240,18 +258,9 @@ client.on(Events.MessageCreate, async (message) => {
     if (message.content === '!info') {
         if (isStaff) {
             const guild = message.guild;
-            await message.channel.send({ embeds: [new EmbedBuilder().setColor(COLORS.dark).setTitle('Your Fish Life - Complete Game Information').setDescription('Comprehensive details regarding the development of Your Fish Life.').addFields({ name: 'Developer', value: 'Jaxdrax Studio' }, { name: 'Core Features', value: 'Aquarium building, fish species discovery, community relaxation.' }, { name: 'Discord Stats', value: `Members: ${guild.memberCount}\nRoles: ${guild.roles.cache.size}\nChannels: ${guild.channels.cache.size}` }, { name: 'Roblox Live Stats', value: `Players Online: ${robloxPresence.onlinePlayers}\nServer Status: ${robloxPresence.serverStatus}` }, { name: 'Support', value: 'Use the !ticket command or send a DM to the bot for assistance.' }).setThumbnail(LOGO_URL).setFooter({ text: 'Jaxdrax Studio Development Team', iconURL: LOGO_URL }).setTimestamp()] });
+            await message.channel.send({ embeds: [new EmbedBuilder().setColor(COLORS.dark).setTitle('Your Fish Life - Complete Game Information').setDescription('Comprehensive details regarding the development of Your Fish Life.').addFields({ name: 'Developer', value: 'Jaxdrax Studio' }, { name: 'Core Features', value: 'Aquarium building, fish species discovery, community relaxation.' }, { name: 'Discord Stats', value: `Members: ${guild.memberCount}\nRoles: ${guild.roles.cache.size}\nChannels: ${guild.channels.cache.size}` }, { name: 'Roblox Live Stats', value: `Players Online: ${robloxPresence.onlinePlayers}\nServer Status: ${robloxPresence.serverStatus}` }, { name: 'Support', value: 'Send a DM to the bot for assistance.' }).setThumbnail(LOGO_URL).setFooter({ text: 'Jaxdrax Studio Development Team', iconURL: LOGO_URL }).setTimestamp()] });
         } else {
             await message.reply({ embeds: [new EmbedBuilder().setColor(COLORS.gray).setTitle('Your Fish Life - Game Info').setDescription('Your Fish Life is an upcoming Roblox experience developed by Jaxdrax Studio.').addFields({ name: 'Developer', value: 'Jaxdrax Studio' }, { name: 'Status', value: 'Currently in Development' }, { name: 'Platform', value: 'Roblox (PC, Mobile, Console)' }).setThumbnail(LOGO_URL).setTimestamp()] });
-        }
-    }
-
-    if (message.content === '!ticket') {
-        if (isStaff) {
-            const button = new ButtonBuilder().setCustomId('open_ticket').setLabel('Open Ticket').setStyle(ButtonStyle.Primary);
-            await message.channel.send({ embeds: [new EmbedBuilder().setColor(COLORS.dark).setTitle('Support Ticket System - Official Panel').setDescription('Welcome to the official support system. Click the button below to open a private ticket channel.\n\n**Alternative:** You can also send a direct message to the bot to open a private DM ticket.').setThumbnail(LOGO_URL).setFooter({ text: 'Your Fish Life Support', iconURL: LOGO_URL }).setTimestamp()], components: [new ActionRowBuilder().addComponents(button)] });
-        } else {
-            await message.reply({ embeds: [new EmbedBuilder().setColor(COLORS.gray).setTitle('Ticket Instructions').setDescription('To open a support ticket, you have two options:\n\n**Option 1:** Use the "Open Ticket" button in the help-desk channel.\n**Option 2:** Send a direct message to the bot to open a private DM ticket.\n\n**Before opening a ticket:**\n• Ensure you have read the server rules\n• Check if your issue has already been answered\n• Prepare a detailed description of your problem').setThumbnail(LOGO_URL).setFooter({ text: 'Your Fish Life Support', iconURL: LOGO_URL }).setTimestamp()] });
         }
     }
 });
@@ -261,7 +270,90 @@ client.on(Events.MessageCreate, async (message) => {
 // ==========================================================
 client.on(Events.InteractionCreate, async (interaction) => {
     if (interaction.isButton()) {
-        // Bouton pour répondre à un ticket DM
+        // Bouton pour ouvrir un ticket DM
+        if (interaction.customId.startsWith('dm_open_')) {
+            const userId = interaction.customId.replace('dm_open_', '');
+            
+            if (interaction.user.id !== userId) {
+                return interaction.reply({ 
+                    embeds: [new EmbedBuilder().setColor(COLORS.red).setTitle('Access Denied').setDescription('This button is not for you.').setTimestamp()],
+                    flags: MessageFlags.Ephemeral
+                });
+            }
+            
+            const guild = client.guilds.cache.first();
+            const user = await client.users.fetch(userId);
+            
+            const ticketChannelName = `ticket-${user.username}`.toLowerCase().replace(/[^a-z0-9-]/g, '');
+            
+            const permissionOverwrites = [
+                { id: guild.id, deny: ['ViewChannel'] },
+            ];
+            
+            staffRoles.forEach(roleName => {
+                const role = guild.roles.cache.find(r => r.name === roleName);
+                if (role) permissionOverwrites.push({ id: role.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'] });
+            });
+            
+            try {
+                const newChannel = await guild.channels.create({
+                    name: ticketChannelName,
+                    type: ChannelType.GuildText,
+                    topic: `DM Ticket for ${userId}`,
+                    permissionOverwrites: permissionOverwrites,
+                    reason: `DM Ticket created for ${user.tag}`
+                });
+                
+                dmTickets.set(userId, newChannel.id);
+                
+                const welcomeEmbed = new EmbedBuilder()
+                    .setColor(COLORS.dark)
+                    .setTitle('DM Ticket Opened')
+                    .setDescription(`This is a private ticket channel for **${user.tag}** (${userId}).\n\nAll messages sent by this user via DM will appear here. You can:\n• Click "Reply" on any message to respond via modal\n• Write directly in this channel to send a message to the user\n• Click "Close Ticket" to end the conversation`)
+                    .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 1024 }))
+                    .setFooter({ text: 'Jaxdrax Studio DM Support', iconURL: LOGO_URL })
+                    .setTimestamp();
+                
+                await newChannel.send({ embeds: [welcomeEmbed] });
+                
+                await interaction.update({ 
+                    embeds: [new EmbedBuilder().setColor(COLORS.dark).setTitle('Ticket Opened').setDescription(`Your ticket has been opened. A staff member will assist you shortly.\n\nYou can continue this conversation via DM.`).setThumbnail(LOGO_URL).setTimestamp()],
+                    components: []
+                });
+                
+                await user.send({ 
+                    embeds: [new EmbedBuilder().setColor(COLORS.dark).setTitle('Ticket Confirmed').setDescription('Your support ticket has been opened. You can now send messages here and they will be relayed to the support team.').setThumbnail(LOGO_URL).setTimestamp()]
+                });
+                
+            } catch (error) {
+                console.error('Error creating DM ticket:', error);
+                await interaction.update({ 
+                    embeds: [new EmbedBuilder().setColor(COLORS.red).setTitle('Error').setDescription('An error occurred while creating the ticket.').setTimestamp()],
+                    components: []
+                });
+            }
+            return;
+        }
+        
+        // Bouton pour annuler l'ouverture d'un ticket DM
+        if (interaction.customId.startsWith('dm_cancel_')) {
+            const userId = interaction.customId.replace('dm_cancel_', '');
+            
+            if (interaction.user.id !== userId) {
+                return interaction.reply({ 
+                    embeds: [new EmbedBuilder().setColor(COLORS.red).setTitle('Access Denied').setDescription('This button is not for you.').setTimestamp()],
+                    flags: MessageFlags.Ephemeral
+                });
+            }
+            
+            await interaction.update({ 
+                embeds: [new EmbedBuilder().setColor(COLORS.gray).setTitle('Cancelled').setDescription('Ticket creation cancelled. If you need support later, feel free to message the bot again.').setTimestamp()],
+                components: []
+            });
+            return;
+        }
+        
+        // Bouton pour répondre à un message DM
         if (interaction.customId.startsWith('dm_reply_')) {
             const userId = interaction.customId.replace('dm_reply_', '');
             
@@ -304,67 +396,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
             await interaction.showModal(modal);
             return;
         }
-        
-        // Boutons de ticket normaux (serveur)
-        if (interaction.customId === 'open_ticket') {
-            const ticketChannelName = `ticket-${interaction.user.username}`.toLowerCase().replace(/[^a-z0-9-]/g, '');
-            if (interaction.guild.channels.cache.find(c => c.name === ticketChannelName)) {
-                return interaction.reply({ embeds: [new EmbedBuilder().setColor(COLORS.red).setTitle('Ticket Already Open').setDescription('You already have an open ticket.').setThumbnail(LOGO_URL).setTimestamp()], flags: MessageFlags.Ephemeral });
-            }
-
-            const permissionOverwrites = [
-                { id: interaction.guild.id, deny: ['ViewChannel'] },
-                { id: interaction.user.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'] }
-            ];
-            staffRoles.forEach(roleName => {
-                const role = interaction.guild.roles.cache.find(r => r.name === roleName);
-                if (role) permissionOverwrites.push({ id: role.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'] });
-            });
-
-            try {
-                const newChannel = await interaction.guild.channels.create({
-                    name: ticketChannelName, type: ChannelType.GuildText, parent: interaction.channel.parentId,
-                    topic: `Ticket created by ${interaction.user.id}`, permissionOverwrites, reason: `Ticket by ${interaction.user.tag}`
-                });
-
-                const closeBtn = new ButtonBuilder().setCustomId('close_ticket').setLabel('Close Ticket').setStyle(ButtonStyle.Danger);
-                await newChannel.send({ content: `<@${interaction.user.id}>`, embeds: [new EmbedBuilder().setColor(COLORS.dark).setTitle('Support Ticket Opened').setDescription(`Hello <@${interaction.user.id}>, welcome to your private support ticket.\n\n**Ticket Details:**\n• Created by: ${interaction.user.username}\n• User ID: ${interaction.user.id}\n• Channel: ${newChannel}\n\n**Next Steps:**\n• Please describe your issue in detail\n• Attach screenshots or videos if applicable\n• A staff member will assist you shortly`).setThumbnail(LOGO_URL).setFooter({ text: 'Your Fish Life Support', iconURL: LOGO_URL }).setTimestamp()], components: [new ActionRowBuilder().addComponents(closeBtn)] });
-
-                try {
-                    await interaction.user.send({ embeds: [new EmbedBuilder().setColor(COLORS.dark).setTitle('Ticket Created Successfully').setDescription(`Your support ticket has been created: ${newChannel}`).setThumbnail(LOGO_URL).setTimestamp()] });
-                    await interaction.reply({ embeds: [new EmbedBuilder().setColor(COLORS.dark).setTitle('Success').setDescription('Confirmation sent to your DMs.').setThumbnail(LOGO_URL).setTimestamp()], flags: MessageFlags.Ephemeral });
-                } catch {
-                    await interaction.reply({ embeds: [new EmbedBuilder().setColor(COLORS.dark).setTitle('Ticket Created').setDescription(`Your ticket: ${newChannel}`).setThumbnail(LOGO_URL).setTimestamp()], flags: MessageFlags.Ephemeral });
-                }
-            } catch (error) { console.error(error); }
-        }
-
-        if (interaction.customId === 'close_ticket') {
-            const modal = new ModalBuilder().setCustomId('close_ticket_modal').setTitle('Close Ticket');
-            modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('reason').setLabel('Reason for closing (optional)').setStyle(TextInputStyle.Paragraph).setRequired(false)));
-            await interaction.showModal(modal);
-        }
-
-        if (interaction.customId === 'reopen_ticket') {
-            const creatorId = interaction.channel.topic?.match(/\d{17,19}/)?.[0];
-            if (creatorId) await interaction.channel.permissionOverwrites.edit(creatorId, { ViewChannel: true, SendMessages: true, ReadMessageHistory: true });
-            const closeBtn = new ButtonBuilder().setCustomId('close_ticket').setLabel('Close Ticket').setStyle(ButtonStyle.Danger);
-            await interaction.channel.send({ embeds: [new EmbedBuilder().setColor(COLORS.gray).setTitle('Ticket Reopened').setDescription(`Reopened by <@${interaction.user.id}> (${interaction.user.username}, ${interaction.user.id})`).setThumbnail(LOGO_URL).setTimestamp()], components: [new ActionRowBuilder().addComponents(closeBtn)] });
-            await interaction.reply({ embeds: [new EmbedBuilder().setColor(COLORS.gray).setTitle('Success').setDescription('Ticket reopened.').setThumbnail(LOGO_URL).setTimestamp()], flags: MessageFlags.Ephemeral });
-        }
-
-        if (interaction.customId === 'delete_ticket') {
-            await interaction.deferUpdate();
-            try {
-                const messages = await interaction.channel.messages.fetch({ limit: 100 });
-                let transcript = `Transcript for ${interaction.channel.name}\n\n`;
-                Array.from(messages.values()).sort((a, b) => a.createdTimestamp - b.createdTimestamp).forEach(msg => { transcript += `[${msg.createdAt.toISOString()}] ${msg.author.tag}: ${msg.content || '(embed/attachment)'}\n`; });
-                
-                const transcriptChannel = interaction.client.channels.cache.get(process.env.TICKET_TRANSCRIPTS_CHANNEL_ID);
-                if (transcriptChannel) await transcriptChannel.send({ embeds: [new EmbedBuilder().setColor(COLORS.dark).setTitle('Ticket Transcript Saved').setDescription(`Transcript for ${interaction.channel.name}\n\n**Details:**\n• Messages Saved: ${messages.size}\n• Saved by: <@${interaction.user.id}>`).setThumbnail(LOGO_URL).setTimestamp()], files: [{ attachment: Buffer.from(transcript, 'utf-8'), name: `${interaction.channel.name}.txt` }] });
-                await interaction.channel.delete('Transcript saved');
-            } catch (error) { console.error(error); try { await interaction.channel.delete('Transcript failed'); } catch {} }
-        }
     }
 
     // Gestion des modals
@@ -377,30 +408,26 @@ client.on(Events.InteractionCreate, async (interaction) => {
             try {
                 const user = await client.users.fetch(userId);
                 
-                // Envoyer le message en DM à l'utilisateur
                 const replyEmbed = new EmbedBuilder()
-                    .setColor(COLORS.dark)
-                    .setTitle('Staff Response')
+                    .setColor(COLORS.gray)
+                    .setAuthor({ name: `${interaction.user.tag} (Staff)`, iconURL: interaction.user.displayAvatarURL({ dynamic: true, size: 1024 }) })
                     .setDescription(replyMessage)
-                    .setFooter({ text: `Response from: ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL({ dynamic: true, size: 1024 }) })
+                    .setFooter({ text: 'Staff Response' })
                     .setTimestamp();
                 
                 await user.send({ embeds: [replyEmbed] });
                 
-                // Confirmer dans le salon de ticket
-                const confirmationEmbed = new EmbedBuilder()
-                    .setColor(COLORS.dark)
-                    .setTitle('Reply Sent')
-                    .setDescription(`Your response has been sent to <@${userId}> (${user.tag}).\n\n**Message:**\n${replyMessage}`)
-                    .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true, size: 1024 }))
-                    .setFooter({ text: `Sent by: ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL({ dynamic: true, size: 1024 }) })
-                    .setTimestamp();
-                
-                await interaction.reply({ embeds: [confirmationEmbed], flags: MessageFlags.Ephemeral });
+                await interaction.reply({ 
+                    embeds: [new EmbedBuilder().setColor(COLORS.dark).setTitle('Reply Sent').setDescription(`Your response has been sent to <@${userId}>.`).setTimestamp()],
+                    flags: MessageFlags.Ephemeral
+                });
                 
             } catch (error) {
                 console.error('Error sending DM reply:', error);
-                await interaction.reply({ embeds: [new EmbedBuilder().setColor(COLORS.red).setTitle('Error').setDescription('Failed to send the reply. The user may have DMs disabled.').setThumbnail(LOGO_URL).setTimestamp()], flags: MessageFlags.Ephemeral });
+                await interaction.reply({ 
+                    embeds: [new EmbedBuilder().setColor(COLORS.red).setTitle('Error').setDescription('Failed to send the reply. The user may have DMs disabled.').setTimestamp()],
+                    flags: MessageFlags.Ephemeral
+                });
             }
             return;
         }
@@ -413,7 +440,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
             try {
                 const user = await client.users.fetch(userId);
                 
-                // Informer l'utilisateur en DM
                 const closeEmbed = new EmbedBuilder()
                     .setColor(COLORS.red)
                     .setTitle('Ticket Closed')
@@ -423,7 +449,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 
                 await user.send({ embeds: [closeEmbed] });
                 
-                // Sauvegarder le transcript
                 const messages = await interaction.channel.messages.fetch({ limit: 100 });
                 let transcript = `DM Ticket Transcript for ${user.tag} (${userId})\n\n`;
                 Array.from(messages.values()).sort((a, b) => a.createdTimestamp - b.createdTimestamp).forEach(msg => { 
@@ -438,7 +463,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
                     });
                 }
                 
-                // Supprimer le salon
+                dmTickets.delete(userId);
                 await interaction.channel.delete('DM Ticket closed');
                 
             } catch (error) {
@@ -448,24 +473,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 } catch {}
             }
             return;
-        }
-        
-        // Modal de fermeture d'un ticket normal
-        if (interaction.customId === 'close_ticket_modal') {
-            const reason = interaction.fields.getTextInputValue('reason') || 'No reason provided.';
-            const creatorId = interaction.channel.topic?.match(/\d{17,19}/)?.[0];
-            if (creatorId) await interaction.channel.permissionOverwrites.edit(creatorId, { ViewChannel: false, SendMessages: false });
-            
-            const reopenBtn = new ButtonBuilder().setCustomId('reopen_ticket').setLabel('Reopen Ticket').setStyle(ButtonStyle.Success);
-            const deleteBtn = new ButtonBuilder().setCustomId('delete_ticket').setLabel('Delete Permanently').setStyle(ButtonStyle.Danger);
-            await interaction.channel.send({ embeds: [new EmbedBuilder().setColor(COLORS.red).setTitle('Ticket Closed').setDescription(`Closed by <@${interaction.user.id}> (${interaction.user.username}, ${interaction.user.id})\n\n**Reason:** ${reason}`).setThumbnail(LOGO_URL).setTimestamp()], components: [new ActionRowBuilder().addComponents(reopenBtn, deleteBtn)] });
-            
-            try {
-                await interaction.user.send({ embeds: [new EmbedBuilder().setColor(COLORS.red).setTitle('Ticket Closed').setDescription(`Reason: ${reason}`).setThumbnail(LOGO_URL).setTimestamp()] });
-                await interaction.reply({ embeds: [new EmbedBuilder().setColor(COLORS.red).setTitle('Success').setDescription('Confirmation sent to DMs.').setThumbnail(LOGO_URL).setTimestamp()], flags: MessageFlags.Ephemeral });
-            } catch {
-                await interaction.reply({ embeds: [new EmbedBuilder().setColor(COLORS.red).setTitle('Ticket Closed').setDescription('Ticket closed.').setThumbnail(LOGO_URL).setTimestamp()], flags: MessageFlags.Ephemeral });
-            }
         }
     }
 });
