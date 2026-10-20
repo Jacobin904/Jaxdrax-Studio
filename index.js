@@ -516,17 +516,100 @@ client.on(Events.InteractionCreate, async (interaction) => {
 client.login(process.env.DISCORD_TOKEN);
 
 // ==========================================================
-// SERVEUR DE SANTÉ (HEALTH CHECK) POUR CANNER ET UPTIMEROBOT
+// API HTTP POUR ROBLOX ET HEALTH CHECK
 // ==========================================================
-const http = require('http');
+const express = require('express');
+const app = express();
+app.use(express.json());
+
 const PORT = process.env.PORT || 3000;
 
-const server = http.createServer((req, res) => {
-    // Répondre "200 OK" pour tromper Canner et UptimeRobot
-    res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('Jaxdrax Studio Bot is running smoothly');
+// Middleware de sécurité pour vérifier la clé API Roblox
+function verifyRobloxKey(req, res, next) {
+    const apiKey = req.headers['x-roblox-key'];
+    if (apiKey !== process.env.ROBLOX_API_KEY) {
+        return res.status(401).json({ error: 'Invalid API key' });
+    }
+    next();
+}
+
+// Health check (pour Canner et UptimeRobot)
+app.get('/', (req, res) => {
+    res.status(200).send('Jaxdrax Studio Bot is running smoothly');
 });
 
-server.listen(PORT, () => {
-    console.log(`Health check server is running on port ${PORT}`);
+// Endpoint : Vérifier si un joueur Roblox est membre du Discord
+app.post('/api/check-member', verifyRobloxKey, async (req, res) => {
+    try {
+        const { discordId, guildId } = req.body;
+        if (!discordId || !guildId) {
+            return res.status(400).json({ error: 'Missing discordId or guildId' });
+        }
+        
+        const guild = client.guilds.cache.get(guildId);
+        if (!guild) return res.json({ isMember: false });
+        
+        try {
+            await guild.members.fetch(discordId);
+            res.json({ isMember: true });
+        } catch (e) {
+            res.json({ isMember: false });
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Endpoint : Donner un rôle VIP Discord à un joueur Roblox spécifique
+app.post('/api/give-vip', verifyRobloxKey, async (req, res) => {
+    try {
+        const { discordId, guildId } = req.body;
+        const guild = client.guilds.cache.get(guildId);
+        const vipRole = guild.roles.cache.find(r => r.name === 'VIP');
+        const member = await guild.members.fetch(discordId);
+        
+        await member.roles.add(vipRole);
+        res.json({ success: true, message: 'VIP role added' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Endpoint : Récupérer les stats du serveur Discord
+app.get('/api/stats', verifyRobloxKey, (req, res) => {
+    const guild = client.guilds.cache.first();
+    if (!guild) return res.status(404).json({ error: 'No guild found' });
+    
+    res.json({
+        memberCount: guild.memberCount,
+        onlineCount: guild.members.cache.filter(m => m.presence?.status === 'online').size,
+        botOnline: true,
+        timestamp: new Date().toISOString()
+    });
+});
+
+// Endpoint : Envoyer un message depuis Roblox vers un salon spécifique
+app.post('/api/send-message', verifyRobloxKey, async (req, res) => {
+    try {
+        const { channelId, message, title, color } = req.body;
+        const channel = client.channels.cache.get(channelId);
+        
+        if (!channel) return res.status(404).json({ error: 'Channel not found' });
+        
+        const embed = new EmbedBuilder()
+            .setColor(color || COLORS.dark)
+            .setTitle(title || 'Roblox Message')
+            .setDescription(message)
+            .setThumbnail(LOGO_URL)
+            .setTimestamp();
+        
+        await channel.send({ embeds: [embed] });
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.listen(PORT, () => {
+    console.log(`API and health check server running on port ${PORT}`);
 });
