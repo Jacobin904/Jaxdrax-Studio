@@ -5,8 +5,13 @@ const {
     TextInputBuilder, TextInputStyle, MessageFlags, ActivityType
 } = require('discord.js');
 
-process.on('unhandledRejection', error => console.error('Unhandled rejection:', error));
-process.on('uncaughtException', error => { console.error('Uncaught exception:', error); process.exit(1); });
+process.on('unhandledRejection', error => {
+    sendDevLog(new EmbedBuilder().setColor(COLORS.red).setTitle('Unhandled Rejection').setDescription(`\`\`\`${error}\`\`\``).setTimestamp());
+});
+process.on('uncaughtException', error => {
+    sendDevLog(new EmbedBuilder().setColor(COLORS.red).setTitle('Uncaught Exception').setDescription(`\`\`\`${error}\`\`\``).setTimestamp());
+    process.exit(1);
+});
 
 const client = new Client({
     intents: [
@@ -28,15 +33,35 @@ const LOGO_URL = 'https://media.discordapp.net/attachments/1561478676850151638/1
 
 let robloxPresence = { onlinePlayers: 0, totalPlayers: 0, serverStatus: 'Unknown' };
 
+// ==========================================================
+// FONCTION DE LOG UNIFIÉE (ENVOIE TOUT DANS DEV-LOGS)
+// ==========================================================
 async function sendDevLog(embed) {
     const channel = client.channels.cache.get(process.env.DEV_LOGS_CHANNEL_ID);
     if (channel) { 
         try { 
             await channel.send({ embeds: [embed] }); 
         } catch (error) {
-            console.error('Error sending dev log:', error);
+            // Silencieux pour éviter les boucles infinies
         }
     }
+}
+
+// Fonction helper pour créer des logs rapides
+function logInfo(title, description) {
+    sendDevLog(new EmbedBuilder().setColor(COLORS.dark).setTitle(title).setDescription(description).setThumbnail(LOGO_URL).setFooter({ text: 'Jaxdrax Studio Bot', iconURL: LOGO_URL }).setTimestamp());
+}
+
+function logSuccess(title, description) {
+    sendDevLog(new EmbedBuilder().setColor('#2ecc71').setTitle(title).setDescription(description).setThumbnail(LOGO_URL).setFooter({ text: 'Jaxdrax Studio Bot', iconURL: LOGO_URL }).setTimestamp());
+}
+
+function logError(title, description) {
+    sendDevLog(new EmbedBuilder().setColor(COLORS.red).setTitle(title).setDescription(description).setThumbnail(LOGO_URL).setFooter({ text: 'Jaxdrax Studio Bot', iconURL: LOGO_URL }).setTimestamp());
+}
+
+function logWarning(title, description) {
+    sendDevLog(new EmbedBuilder().setColor('#f39c12').setTitle(title).setDescription(description).setThumbnail(LOGO_URL).setFooter({ text: 'Jaxdrax Studio Bot', iconURL: LOGO_URL }).setTimestamp());
 }
 
 // ==========================================================
@@ -74,11 +99,8 @@ function updateBotPresence() {
 setInterval(updateBotPresence, 120000);
 
 client.once(Events.ClientReady, (c) => {
-    console.log(`✅ Bot is online as ${c.user.tag}`);
-    console.log(`✅ Guilds: ${client.guilds.cache.size}`);
-    console.log(`✅ Users: ${client.users.cache.size}`);
     updateBotPresence();
-    sendDevLog(new EmbedBuilder().setColor(COLORS.dark).setTitle('Bot Online - System Initialized').setDescription(`The Jaxdrax Studio Bot has successfully connected to Discord and is now fully operational.\n\n**Connection Details:**\n• Tag: ${c.user.tag}\n• ID: ${c.user.id}\n• Servers: ${client.guilds.cache.size}\n• Users: ${client.users.cache.size}\n\nAll monitoring systems are active and ready to track server events.`).setThumbnail(LOGO_URL).setFooter({ text: 'Jaxdrax Studio System Monitor', iconURL: LOGO_URL }).setTimestamp());
+    logSuccess('Bot Online - System Initialized', `The Jaxdrax Studio Bot has successfully connected to Discord and is now fully operational.\n\n**Connection Details:**\n• Tag: ${c.user.tag}\n• ID: ${c.user.id}\n• Servers: ${client.guilds.cache.size}\n• Users: ${client.users.cache.size}\n\nAll monitoring systems are active and ready to track server events.`);
 });
 
 // ==========================================================
@@ -106,37 +128,27 @@ function getDMTicketChannel(userId, guild) {
 
 // Écouter TOUS les messages
 client.on(Events.MessageCreate, async (message) => {
-    // Log pour débogage
-    console.log(`📨 Message received from ${message.author.tag} in ${message.channel.type}`);
+    if (message.author.bot) return;
     
-    if (message.author.bot) {
-        console.log('⏭️ Ignoring bot message');
-        return;
-    }
+    // Log chaque message reçu
+    logInfo('Message Received', `**From:** ${message.author.tag} (${message.author.id})\n**Channel:** ${message.channel.type === ChannelType.DM ? 'DM' : message.channel.name}\n**Content:** ${message.content || '*No text content*'}`);
     
     // Gérer les messages en DM
     if (message.channel.type === ChannelType.DM) {
-        console.log(`🔔 DM received from ${message.author.tag}`);
-        
         const user = message.author;
         const guild = client.guilds.cache.first();
         
         if (!guild) {
-            console.error('❌ No guild found');
+            logError('No Guild Found', 'The bot is not connected to any guild. Cannot process DM tickets.');
             return;
         }
         
-        console.log(`✅ Guild found: ${guild.name}`);
-        
-        // Vérifier si l'utilisateur a déjà un ticket ouvert
         const existingTicket = getDMTicketChannel(user.id, guild);
-        console.log(`🔍 Existing ticket: ${existingTicket ? existingTicket.name : 'None'}`);
         
         if (existingTicket) {
-            // Ticket déjà ouvert, relayer le message
+            logInfo('DM Ticket Active', `Relaying message from ${user.tag} to ticket channel ${existingTicket.name}`);
+            
             try {
-                console.log('📤 Relaying message to ticket channel');
-                
                 const messageEmbed = new EmbedBuilder()
                     .setColor(COLORS.dark)
                     .setAuthor({ name: `${user.tag}`, iconURL: user.displayAvatarURL({ dynamic: true, size: 1024 }) })
@@ -166,17 +178,17 @@ client.on(Events.MessageCreate, async (message) => {
                     components: [row] 
                 });
                 
-                console.log('✅ Message relayed successfully');
+                logSuccess('Message Relayed', `Message from ${user.tag} successfully relayed to ${existingTicket.name}`);
                 
                 try {
                     await message.react('✅');
-                    console.log('✅ Reaction added');
+                    logInfo('Reaction Added', `Added ✅ reaction to message from ${user.tag}`);
                 } catch (reactError) {
-                    console.error('❌ Could not add reaction:', reactError.message);
+                    logWarning('Reaction Failed', `Could not add reaction to message from ${user.tag}: ${reactError.message}`);
                 }
                 
             } catch (error) {
-                console.error('❌ Error relaying DM message:', error);
+                logError('Error Relaying DM', `Failed to relay message from ${user.tag}: ${error.message}`);
                 try {
                     await message.reply({ 
                         embeds: [new EmbedBuilder()
@@ -186,12 +198,11 @@ client.on(Events.MessageCreate, async (message) => {
                             .setTimestamp()]
                     });
                 } catch (replyError) {
-                    console.error('❌ Could not send error message:', replyError);
+                    logError('Error Sending Error Message', `Could not send error message to ${user.tag}: ${replyError.message}`);
                 }
             }
         } else {
-            // Pas de ticket ouvert, demander confirmation
-            console.log('🆕 No existing ticket, showing confirmation');
+            logInfo('New DM Contact', `No existing ticket for ${user.tag}. Showing confirmation dialog.`);
             
             try {
                 const confirmEmbed = new EmbedBuilder()
@@ -219,10 +230,10 @@ client.on(Events.MessageCreate, async (message) => {
                     components: [row] 
                 });
                 
-                console.log('✅ Confirmation message sent');
+                logSuccess('Confirmation Sent', `Confirmation dialog sent to ${user.tag}`);
                 
             } catch (error) {
-                console.error('❌ Error sending confirmation:', error);
+                logError('Error Sending Confirmation', `Failed to send confirmation to ${user.tag}: ${error.message}`);
             }
         }
         
@@ -235,6 +246,8 @@ client.on(Events.MessageCreate, async (message) => {
         const isStaff = message.member.roles.cache.some(role => staffRoles.includes(role.name));
         
         if (isStaff && !message.author.bot) {
+            logInfo('Staff Reply in DM Ticket', `${message.author.tag} replying in DM ticket for user ${userId}`);
+            
             try {
                 const user = await client.users.fetch(userId);
                 
@@ -252,8 +265,10 @@ client.on(Events.MessageCreate, async (message) => {
                 
                 await user.send({ embeds: [replyEmbed] });
                 
+                logSuccess('Staff Reply Sent', `${message.author.tag} reply sent to ${user.tag} via DM`);
+                
             } catch (error) {
-                console.error('Error sending staff reply to user:', error);
+                logError('Error Sending Staff Reply', `Failed to send reply to user ${userId}: ${error.message}`);
                 await message.reply({ 
                     embeds: [new EmbedBuilder()
                         .setColor(COLORS.red)
@@ -299,7 +314,9 @@ client.on(Events.MessageCreate, async (message) => {
 
         try {
             await message.author.send({ embeds: [configEmbed] });
+            logSuccess('Config Sent', `Server configuration sent to ${message.author.tag} via DM`);
         } catch (error) {
+            logError('Config Delivery Failed', `Could not send config to ${message.author.tag}: ${error.message}`);
             await message.reply({ embeds: [new EmbedBuilder().setColor(COLORS.red).setTitle('DM Delivery Failed').setDescription('I could not send you the configuration report via DM.').setThumbnail(LOGO_URL).setTimestamp()], flags: MessageFlags.Ephemeral });
         }
     }
@@ -326,14 +343,14 @@ client.on(Events.MessageCreate, async (message) => {
 // GESTION DES INTERACTIONS (BOUTONS ET MODALS)
 // ==========================================================
 client.on(Events.InteractionCreate, async (interaction) => {
-    console.log(`🔘 Interaction received: ${interaction.customId || 'unknown'} from ${interaction.user.tag}`);
+    logInfo('Interaction Received', `**Type:** ${interaction.isButton() ? 'Button' : interaction.isModalSubmit() ? 'Modal' : 'Other'}\n**Custom ID:** ${interaction.customId || 'N/A'}\n**User:** ${interaction.user.tag} (${interaction.user.id})`);
     
     if (interaction.isButton()) {
-        // Bouton pour ouvrir un ticket DM
         if (interaction.customId.startsWith('dm_open_')) {
             const userId = interaction.customId.replace('dm_open_', '');
             
             if (interaction.user.id !== userId) {
+                logWarning('Unauthorized Button Click', `${interaction.user.tag} tried to click a button meant for another user`);
                 return interaction.reply({ 
                     embeds: [new EmbedBuilder().setColor(COLORS.red).setTitle('Access Denied').setDescription('This button is not for you.').setTimestamp()],
                     flags: MessageFlags.Ephemeral
@@ -384,10 +401,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
                     embeds: [new EmbedBuilder().setColor(COLORS.dark).setTitle('Ticket Confirmed').setDescription('Your support ticket has been opened. You can now send messages here and they will be relayed to the support team.').setThumbnail(LOGO_URL).setTimestamp()]
                 });
                 
-                console.log(`✅ DM ticket created for ${user.tag}`);
+                logSuccess('DM Ticket Created', `Ticket channel ${newChannel.name} created for ${user.tag} (${userId})`);
                 
             } catch (error) {
-                console.error('❌ Error creating DM ticket:', error);
+                logError('Error Creating DM Ticket', `Failed to create ticket for ${user.tag}: ${error.message}`);
                 await interaction.update({ 
                     embeds: [new EmbedBuilder().setColor(COLORS.red).setTitle('Error').setDescription('An error occurred while creating the ticket.').setTimestamp()],
                     components: []
@@ -396,7 +413,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
             return;
         }
         
-        // Bouton pour annuler
         if (interaction.customId.startsWith('dm_cancel_')) {
             const userId = interaction.customId.replace('dm_cancel_', '');
             
@@ -411,10 +427,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 embeds: [new EmbedBuilder().setColor(COLORS.gray).setTitle('Cancelled').setDescription('Ticket creation cancelled. If you need support later, feel free to message the bot again.').setTimestamp()],
                 components: []
             });
+            
+            logInfo('Ticket Cancelled', `${interaction.user.tag} cancelled ticket creation`);
             return;
         }
         
-        // Bouton pour répondre
         if (interaction.customId.startsWith('dm_reply_')) {
             const userId = interaction.customId.replace('dm_reply_', '');
             
@@ -433,10 +450,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
             modal.addComponents(row);
             
             await interaction.showModal(modal);
+            logInfo('Reply Modal Shown', `Reply modal shown to ${interaction.user.tag} for user ${userId}`);
             return;
         }
         
-        // Bouton pour fermer
         if (interaction.customId.startsWith('dm_close_')) {
             const userId = interaction.customId.replace('dm_close_', '');
             
@@ -455,11 +472,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
             modal.addComponents(row);
             
             await interaction.showModal(modal);
+            logInfo('Close Modal Shown', `Close modal shown to ${interaction.user.tag} for user ${userId}`);
             return;
         }
     }
 
-    // Gestion des modals
     if (interaction.isModalSubmit()) {
         if (interaction.customId.startsWith('dm_reply_modal_')) {
             const userId = interaction.customId.replace('dm_reply_modal_', '');
@@ -482,8 +499,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
                     flags: MessageFlags.Ephemeral
                 });
                 
+                logSuccess('Reply Sent via Modal', `${interaction.user.tag} sent reply to ${user.tag} (${userId})`);
+                
             } catch (error) {
-                console.error('Error sending DM reply:', error);
+                logError('Error Sending Modal Reply', `Failed to send reply to ${userId}: ${error.message}`);
                 await interaction.reply({ 
                     embeds: [new EmbedBuilder().setColor(COLORS.red).setTitle('Error').setDescription('Failed to send the reply. The user may have DMs disabled.').setTimestamp()],
                     flags: MessageFlags.Ephemeral
@@ -525,8 +544,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 dmTickets.delete(userId);
                 await interaction.channel.delete('DM Ticket closed');
                 
+                logSuccess('DM Ticket Closed', `Ticket for ${user.tag} (${userId}) closed by ${interaction.user.tag}\n**Reason:** ${reason}`);
+                
             } catch (error) {
-                console.error('Error closing DM ticket:', error);
+                logError('Error Closing DM Ticket', `Failed to close ticket for ${userId}: ${error.message}`);
                 try {
                     await interaction.channel.delete('DM Ticket closed (error)');
                 } catch {}
@@ -561,8 +582,10 @@ app.post('/api/update-presence', verifyRobloxKey, (req, res) => {
             serverStatus: serverStatus || 'Unknown'
         };
         updateBotPresence();
+        logSuccess('Roblox Presence Updated', `Online Players: ${onlinePlayers}\nTotal Players: ${totalPlayers}\nServer Status: ${serverStatus}`);
         res.json({ success: true, message: 'Presence updated', data: robloxPresence });
     } catch (error) {
+        logError('Error Updating Presence', error.message);
         res.status(500).json({ error: error.message });
     }
 });
@@ -573,7 +596,10 @@ app.post('/api/check-member', verifyRobloxKey, async (req, res) => {
         const guild = client.guilds.cache.get(guildId);
         if (!guild) return res.json({ isMember: false });
         try { await guild.members.fetch(discordId); res.json({ isMember: true }); } catch { res.json({ isMember: false }); }
-    } catch (error) { res.status(500).json({ error: error.message }); }
+    } catch (error) {
+        logError('Error Checking Member', error.message);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 app.post('/api/give-vip', verifyRobloxKey, async (req, res) => {
@@ -583,8 +609,12 @@ app.post('/api/give-vip', verifyRobloxKey, async (req, res) => {
         const vipRole = guild.roles.cache.find(r => r.name === 'VIP');
         const member = await guild.members.fetch(discordId);
         await member.roles.add(vipRole);
+        logSuccess('VIP Role Given', `VIP role given to user ${discordId}`);
         res.json({ success: true });
-    } catch (error) { res.status(500).json({ error: error.message }); }
+    } catch (error) {
+        logError('Error Giving VIP', error.message);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 app.get('/api/stats', verifyRobloxKey, (req, res) => {
@@ -598,4 +628,4 @@ app.get('/api/stats', verifyRobloxKey, (req, res) => {
     });
 });
 
-app.listen(PORT, () => console.log(`API and health check server running on port ${PORT}`));
+app.listen(PORT, () => logSuccess('API Server Started', `HTTP API and health check server running on port ${PORT}`));
