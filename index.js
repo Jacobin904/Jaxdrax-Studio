@@ -27,7 +27,7 @@ async function sendDevLog(embed) {
 }
 
 // ==========================================================
-// GESTION DYNAMIQUE DU STATUT DU BOT (DISCORD PRESENCE)
+// GESTION DYNAMIQUE DU STATUT DU BOT (TOUJOURS EN STREAMING)
 // ==========================================================
 let presenceIndex = 0;
 
@@ -35,22 +35,22 @@ function updateBotPresence() {
     const guild = client.guilds.cache.first();
     const memberCount = guild ? guild.memberCount : 0;
     
-    // Liste des statuts qui tournent en boucle
-    const activities = [
-        { name: `Your Fish Life`, type: ActivityType.Playing },
-        { name: `${memberCount} members`, type: ActivityType.Watching },
-        { name: `!help for commands`, type: ActivityType.Competing },
-        { name: `${robloxPresence.onlinePlayers} players in-game`, type: ActivityType.Streaming },
-        { name: `Jaxdrax Studio`, type: ActivityType.Playing }
+    // Liste des messages qui tournent en boucle (toujours en mode Streaming)
+    const streamingMessages = [
+        `Your Fish Life`,
+        `${memberCount} members`,
+        `!help for commands`,
+        `${robloxPresence.onlinePlayers} players in-game`,
+        `Jaxdrax Studio`
     ];
     
-    const current = activities[presenceIndex % activities.length];
+    const currentMessage = streamingMessages[presenceIndex % streamingMessages.length];
     
     client.user.setPresence({
         activities: [{ 
-            name: current.name, 
-            type: current.type,
-            url: current.type === ActivityType.Streaming ? 'https://twitch.tv/jaxdraxstudio' : undefined
+            name: currentMessage,
+            type: ActivityType.Streaming,
+            url: 'https://twitch.tv/jaxdraxstudio' // URL obligatoire pour le mode Streaming
         }],
         status: 'online',
         afk: false
