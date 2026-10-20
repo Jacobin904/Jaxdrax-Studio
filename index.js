@@ -9,7 +9,15 @@ process.on('unhandledRejection', error => console.error('Unhandled rejection:', 
 process.on('uncaughtException', error => { console.error('Uncaught exception:', error); process.exit(1); });
 
 const client = new Client({
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildPresences, GatewayIntentBits.DirectMessages, GatewayIntentBits.DirectMessageReactions],
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildPresences,
+        GatewayIntentBits.DirectMessages,
+        GatewayIntentBits.DirectMessageReactions
+    ],
 });
 
 const staffRoles = ['Game Direction', 'Admin', 'Moderator', 'Developer', 'Staff Team'];
@@ -22,7 +30,13 @@ let robloxPresence = { onlinePlayers: 0, totalPlayers: 0, serverStatus: 'Unknown
 
 async function sendDevLog(embed) {
     const channel = client.channels.cache.get(process.env.DEV_LOGS_CHANNEL_ID);
-    if (channel) { try { await channel.send({ embeds: [embed] }); } catch (error) {} }
+    if (channel) { 
+        try { 
+            await channel.send({ embeds: [embed] }); 
+        } catch (error) {
+            console.error('Error sending dev log:', error);
+        }
+    }
 }
 
 // ==========================================================
@@ -60,7 +74,9 @@ function updateBotPresence() {
 setInterval(updateBotPresence, 120000);
 
 client.once(Events.ClientReady, (c) => {
-    console.log(`Bot is online as ${c.user.tag}`);
+    console.log(`✅ Bot is online as ${c.user.tag}`);
+    console.log(`✅ Guilds: ${client.guilds.cache.size}`);
+    console.log(`✅ Users: ${client.users.cache.size}`);
     updateBotPresence();
     sendDevLog(new EmbedBuilder().setColor(COLORS.dark).setTitle('Bot Online - System Initialized').setDescription(`The Jaxdrax Studio Bot has successfully connected to Discord and is now fully operational.\n\n**Connection Details:**\n• Tag: ${c.user.tag}\n• ID: ${c.user.id}\n• Servers: ${client.guilds.cache.size}\n• Users: ${client.users.cache.size}\n\nAll monitoring systems are active and ready to track server events.`).setThumbnail(LOGO_URL).setFooter({ text: 'Jaxdrax Studio System Monitor', iconURL: LOGO_URL }).setTimestamp());
 });
@@ -69,10 +85,8 @@ client.once(Events.ClientReady, (c) => {
 // SYSTÈME DE TICKET VIA DM
 // ==========================================================
 
-// Stocker les salons de tickets DM actifs
-const dmTickets = new Map(); // userId -> channelId
+const dmTickets = new Map();
 
-// Fonction pour trouver le salon de ticket DM d'un utilisateur
 function getDMTicketChannel(userId, guild) {
     const channelId = dmTickets.get(userId);
     if (channelId) {
@@ -80,31 +94,49 @@ function getDMTicketChannel(userId, guild) {
         if (channel) return channel;
     }
     
-    // Chercher par nom si pas dans le cache
-    const ticketChannelName = `ticket-${client.users.cache.get(userId)?.username || 'unknown'}`.toLowerCase().replace(/[^a-z0-9-]/g, '');
+    const user = client.users.cache.get(userId);
+    if (!user) return null;
+    
+    const ticketChannelName = `ticket-${user.username}`.toLowerCase().replace(/[^a-z0-9-]/g, '');
     return guild.channels.cache.find(c => 
         c.name === ticketChannelName && 
         c.topic?.startsWith(`DM Ticket for ${userId}`)
     );
 }
 
-// Écouter les messages en DM
+// Écouter TOUS les messages
 client.on(Events.MessageCreate, async (message) => {
-    if (message.author.bot) return;
+    // Log pour débogage
+    console.log(`📨 Message received from ${message.author.tag} in ${message.channel.type}`);
+    
+    if (message.author.bot) {
+        console.log('⏭️ Ignoring bot message');
+        return;
+    }
     
     // Gérer les messages en DM
     if (message.channel.type === ChannelType.DM) {
+        console.log(`🔔 DM received from ${message.author.tag}`);
+        
         const user = message.author;
         const guild = client.guilds.cache.first();
         
-        if (!guild) return;
+        if (!guild) {
+            console.error('❌ No guild found');
+            return;
+        }
+        
+        console.log(`✅ Guild found: ${guild.name}`);
         
         // Vérifier si l'utilisateur a déjà un ticket ouvert
         const existingTicket = getDMTicketChannel(user.id, guild);
+        console.log(`🔍 Existing ticket: ${existingTicket ? existingTicket.name : 'None'}`);
         
         if (existingTicket) {
             // Ticket déjà ouvert, relayer le message
             try {
+                console.log('📤 Relaying message to ticket channel');
+                
                 const messageEmbed = new EmbedBuilder()
                     .setColor(COLORS.dark)
                     .setAuthor({ name: `${user.tag}`, iconURL: user.displayAvatarURL({ dynamic: true, size: 1024 }) })
@@ -134,37 +166,64 @@ client.on(Events.MessageCreate, async (message) => {
                     components: [row] 
                 });
                 
-                await message.react('✅');
+                console.log('✅ Message relayed successfully');
+                
+                try {
+                    await message.react('✅');
+                    console.log('✅ Reaction added');
+                } catch (reactError) {
+                    console.error('❌ Could not add reaction:', reactError.message);
+                }
                 
             } catch (error) {
-                console.error('Error relaying DM message:', error);
+                console.error('❌ Error relaying DM message:', error);
+                try {
+                    await message.reply({ 
+                        embeds: [new EmbedBuilder()
+                            .setColor(COLORS.red)
+                            .setTitle('Error')
+                            .setDescription('An error occurred while processing your message.')
+                            .setTimestamp()]
+                    });
+                } catch (replyError) {
+                    console.error('❌ Could not send error message:', replyError);
+                }
             }
         } else {
             // Pas de ticket ouvert, demander confirmation
-            const confirmEmbed = new EmbedBuilder()
-                .setColor(COLORS.dark)
-                .setTitle('DM Support System')
-                .setDescription(`Hello <@${user.id}>, welcome to the Jaxdrax Studio support system.\n\nWould you like to open a private support ticket? A staff member will assist you shortly.\n\n**What happens next:**\n• A private channel will be created on the server\n• Only you and the staff team will have access\n• You can continue this conversation via DM\n• All messages will be relayed securely`)
-                .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 1024 }))
-                .setFooter({ text: 'Jaxdrax Studio Support', iconURL: LOGO_URL })
-                .setTimestamp();
+            console.log('🆕 No existing ticket, showing confirmation');
             
-            const openButton = new ButtonBuilder()
-                .setCustomId(`dm_open_${user.id}`)
-                .setLabel('Open Ticket')
-                .setStyle(ButtonStyle.Success);
-            
-            const cancelButton = new ButtonBuilder()
-                .setCustomId(`dm_cancel_${user.id}`)
-                .setLabel('Cancel')
-                .setStyle(ButtonStyle.Secondary);
-            
-            const row = new ActionRowBuilder().addComponents(openButton, cancelButton);
-            
-            await message.reply({ 
-                embeds: [confirmEmbed], 
-                components: [row] 
-            });
+            try {
+                const confirmEmbed = new EmbedBuilder()
+                    .setColor(COLORS.dark)
+                    .setTitle('DM Support System')
+                    .setDescription(`Hello <@${user.id}>, welcome to the Jaxdrax Studio support system.\n\nWould you like to open a private support ticket? A staff member will assist you shortly.\n\n**What happens next:**\n• A private channel will be created on the server\n• Only you and the staff team will have access\n• You can continue this conversation via DM\n• All messages will be relayed securely`)
+                    .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 1024 }))
+                    .setFooter({ text: 'Jaxdrax Studio Support', iconURL: LOGO_URL })
+                    .setTimestamp();
+                
+                const openButton = new ButtonBuilder()
+                    .setCustomId(`dm_open_${user.id}`)
+                    .setLabel('Open Ticket')
+                    .setStyle(ButtonStyle.Success);
+                
+                const cancelButton = new ButtonBuilder()
+                    .setCustomId(`dm_cancel_${user.id}`)
+                    .setLabel('Cancel')
+                    .setStyle(ButtonStyle.Secondary);
+                
+                const row = new ActionRowBuilder().addComponents(openButton, cancelButton);
+                
+                await message.reply({ 
+                    embeds: [confirmEmbed], 
+                    components: [row] 
+                });
+                
+                console.log('✅ Confirmation message sent');
+                
+            } catch (error) {
+                console.error('❌ Error sending confirmation:', error);
+            }
         }
         
         return;
@@ -173,8 +232,6 @@ client.on(Events.MessageCreate, async (message) => {
     // Gérer les messages du staff dans les salons de tickets DM
     if (message.guild && message.channel.topic?.startsWith('DM Ticket for ')) {
         const userId = message.channel.topic.replace('DM Ticket for ', '');
-        
-        // Vérifier si le message vient d'un staff
         const isStaff = message.member.roles.cache.some(role => staffRoles.includes(role.name));
         
         if (isStaff && !message.author.bot) {
@@ -269,6 +326,8 @@ client.on(Events.MessageCreate, async (message) => {
 // GESTION DES INTERACTIONS (BOUTONS ET MODALS)
 // ==========================================================
 client.on(Events.InteractionCreate, async (interaction) => {
+    console.log(`🔘 Interaction received: ${interaction.customId || 'unknown'} from ${interaction.user.tag}`);
+    
     if (interaction.isButton()) {
         // Bouton pour ouvrir un ticket DM
         if (interaction.customId.startsWith('dm_open_')) {
@@ -325,8 +384,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
                     embeds: [new EmbedBuilder().setColor(COLORS.dark).setTitle('Ticket Confirmed').setDescription('Your support ticket has been opened. You can now send messages here and they will be relayed to the support team.').setThumbnail(LOGO_URL).setTimestamp()]
                 });
                 
+                console.log(`✅ DM ticket created for ${user.tag}`);
+                
             } catch (error) {
-                console.error('Error creating DM ticket:', error);
+                console.error('❌ Error creating DM ticket:', error);
                 await interaction.update({ 
                     embeds: [new EmbedBuilder().setColor(COLORS.red).setTitle('Error').setDescription('An error occurred while creating the ticket.').setTimestamp()],
                     components: []
@@ -335,7 +396,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
             return;
         }
         
-        // Bouton pour annuler l'ouverture d'un ticket DM
+        // Bouton pour annuler
         if (interaction.customId.startsWith('dm_cancel_')) {
             const userId = interaction.customId.replace('dm_cancel_', '');
             
@@ -353,7 +414,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
             return;
         }
         
-        // Bouton pour répondre à un message DM
+        // Bouton pour répondre
         if (interaction.customId.startsWith('dm_reply_')) {
             const userId = interaction.customId.replace('dm_reply_', '');
             
@@ -375,7 +436,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
             return;
         }
         
-        // Bouton pour fermer un ticket DM
+        // Bouton pour fermer
         if (interaction.customId.startsWith('dm_close_')) {
             const userId = interaction.customId.replace('dm_close_', '');
             
@@ -400,7 +461,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     // Gestion des modals
     if (interaction.isModalSubmit()) {
-        // Modal de réponse à un ticket DM
         if (interaction.customId.startsWith('dm_reply_modal_')) {
             const userId = interaction.customId.replace('dm_reply_modal_', '');
             const replyMessage = interaction.fields.getTextInputValue('reply_message');
@@ -432,7 +492,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
             return;
         }
         
-        // Modal de fermeture d'un ticket DM
         if (interaction.customId.startsWith('dm_close_modal_')) {
             const userId = interaction.customId.replace('dm_close_modal_', '');
             const reason = interaction.fields.getTextInputValue('close_reason') || 'No reason provided.';
