@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jaxdrax Studio - Your Fish Life</title>
     <link rel="icon" type="image/png" href="https://media.discordapp.net/attachments/1561478676850151638/1561543957790330900/q1401r6.png">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -14,11 +14,11 @@
         }
 
         :root {
-            --primary-dark: #242120;
-            --primary-red: #cf0d0e;
-            --primary-dark-red: #6c0b0d;
-            --primary-gray: #a49f9e;
-            --primary-light: #fbf7f7;
+            --dark: #242120;
+            --red: #cf0d0e;
+            --dark-red: #6c0b0d;
+            --gray: #a49f9e;
+            --light: #fbf7f7;
         }
 
         html {
@@ -26,10 +26,9 @@
         }
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background-color: var(--primary-dark);
-            color: var(--primary-light);
-            line-height: 1.6;
+            font-family: 'Poppins', sans-serif;
+            background: var(--dark);
+            color: var(--light);
             overflow-x: hidden;
         }
 
@@ -40,21 +39,15 @@
             width: 100%;
             background: rgba(36, 33, 32, 0.95);
             backdrop-filter: blur(20px);
-            padding: 1.5rem 0;
+            padding: 1.5rem 5%;
             z-index: 1000;
-            border-bottom: 1px solid rgba(207, 13, 14, 0.2);
+            border-bottom: 2px solid var(--red);
             transition: all 0.3s ease;
-        }
-
-        nav.scrolled {
-            padding: 1rem 0;
-            background: rgba(36, 33, 32, 0.98);
         }
 
         nav .container {
             max-width: 1400px;
             margin: 0 auto;
-            padding: 0 3rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -71,20 +64,19 @@
             width: 60px;
             height: 60px;
             border-radius: 50%;
-            border: 3px solid var(--primary-red);
-            transition: all 0.3s ease;
+            border: 3px solid var(--red);
+            transition: transform 0.3s ease;
         }
 
         .logo:hover img {
-            transform: scale(1.1);
-            box-shadow: 0 0 30px rgba(207, 13, 14, 0.5);
+            transform: rotate(360deg);
         }
 
         .logo h1 {
             font-size: 1.8rem;
             font-weight: 800;
-            color: var(--primary-light);
-            letter-spacing: -0.5px;
+            color: var(--light);
+            letter-spacing: -1px;
         }
 
         nav ul {
@@ -94,7 +86,7 @@
         }
 
         nav a {
-            color: var(--primary-light);
+            color: var(--light);
             text-decoration: none;
             font-weight: 600;
             font-size: 1rem;
@@ -105,11 +97,11 @@
         nav a::after {
             content: '';
             position: absolute;
-            bottom: -5px;
+            bottom: -8px;
             left: 0;
             width: 0;
-            height: 2px;
-            background: var(--primary-red);
+            height: 3px;
+            background: var(--red);
             transition: width 0.3s ease;
         }
 
@@ -118,7 +110,7 @@
         }
 
         nav a:hover {
-            color: var(--primary-red);
+            color: var(--red);
         }
 
         /* Hero Section */
@@ -128,87 +120,112 @@
             align-items: center;
             justify-content: center;
             text-align: center;
-            padding: 8rem 3rem 4rem;
+            padding: 8rem 5% 4rem;
             position: relative;
-            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-dark-red) 100%);
+            background: linear-gradient(135deg, var(--dark) 0%, var(--dark-red) 100%);
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 50% 50%, rgba(207, 13, 14, 0.2) 0%, transparent 50%);
+            animation: pulse 4s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.2); opacity: 0.8; }
         }
 
         .hero-content {
-            max-width: 900px;
             position: relative;
             z-index: 1;
+            max-width: 1000px;
         }
 
         .hero-badge {
             display: inline-block;
-            background: rgba(207, 13, 14, 0.2);
-            border: 2px solid var(--primary-red);
-            padding: 0.8rem 2rem;
+            background: rgba(207, 13, 14, 0.3);
+            border: 2px solid var(--red);
+            padding: 1rem 2.5rem;
             border-radius: 50px;
-            font-size: 0.9rem;
-            font-weight: 600;
+            font-size: 1rem;
+            font-weight: 700;
             margin-bottom: 2rem;
-            color: var(--primary-light);
+            text-transform: uppercase;
+            letter-spacing: 2px;
         }
 
         .hero h2 {
-            font-size: 5rem;
+            font-size: 6rem;
             font-weight: 900;
             margin-bottom: 2rem;
-            color: var(--primary-light);
-            line-height: 1.1;
-            letter-spacing: -2px;
+            color: var(--light);
+            line-height: 1;
+            letter-spacing: -3px;
+            text-transform: uppercase;
         }
 
         .hero p {
             font-size: 1.5rem;
-            color: var(--primary-gray);
+            color: var(--gray);
             margin-bottom: 3rem;
             line-height: 1.8;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
         }
 
         .cta-button {
             display: inline-block;
-            background: var(--primary-red);
-            color: var(--primary-light);
-            padding: 1.5rem 3rem;
+            background: var(--red);
+            color: var(--light);
+            padding: 2rem 4rem;
             text-decoration: none;
             border-radius: 50px;
-            font-weight: 700;
-            font-size: 1.1rem;
+            font-weight: 800;
+            font-size: 1.2rem;
             transition: all 0.3s ease;
-            box-shadow: 0 10px 40px rgba(207, 13, 14, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            box-shadow: 0 10px 40px rgba(207, 13, 14, 0.5);
         }
 
         .cta-button:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 15px 50px rgba(207, 13, 14, 0.6);
-            background: var(--primary-dark-red);
+            transform: translateY(-5px);
+            box-shadow: 0 15px 50px rgba(207, 13, 14, 0.8);
+            background: var(--dark-red);
         }
 
         /* Sections */
         section {
-            padding: 8rem 3rem;
+            padding: 10rem 5%;
             max-width: 1400px;
             margin: 0 auto;
         }
 
         .section-header {
             text-align: center;
-            margin-bottom: 5rem;
+            margin-bottom: 6rem;
         }
 
         .section-header h3 {
-            font-size: 3.5rem;
+            font-size: 4rem;
             font-weight: 900;
-            margin-bottom: 1.5rem;
-            color: var(--primary-light);
-            letter-spacing: -1px;
+            margin-bottom: 2rem;
+            color: var(--light);
+            text-transform: uppercase;
+            letter-spacing: -2px;
         }
 
         .section-header p {
             font-size: 1.3rem;
-            color: var(--primary-gray);
+            color: var(--gray);
             max-width: 700px;
             margin: 0 auto;
         }
@@ -224,76 +241,117 @@
             background: rgba(164, 159, 158, 0.05);
             padding: 3rem;
             border-radius: 20px;
-            border: 1px solid rgba(207, 13, 14, 0.2);
-            transition: all 0.3s ease;
+            border: 2px solid rgba(207, 13, 14, 0.3);
+            transition: all 0.4s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--red);
+            transform: scaleX(0);
+            transition: transform 0.4s ease;
+        }
+
+        .feature-card:hover::before {
+            transform: scaleX(1);
         }
 
         .feature-card:hover {
-            transform: translateY(-10px);
+            transform: translateY(-15px);
             background: rgba(164, 159, 158, 0.1);
-            border-color: var(--primary-red);
-            box-shadow: 0 20px 40px rgba(207, 13, 14, 0.2);
+            border-color: var(--red);
+            box-shadow: 0 30px 60px rgba(207, 13, 14, 0.3);
         }
 
         .feature-icon {
-            width: 80px;
-            height: 80px;
-            background: var(--primary-red);
+            width: 100px;
+            height: 100px;
+            background: var(--red);
             border-radius: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
             margin-bottom: 2rem;
+            transition: all 0.3s ease;
+        }
+
+        .feature-card:hover .feature-icon {
+            transform: scale(1.1) rotate(10deg);
         }
 
         .feature-icon svg {
-            width: 40px;
-            height: 40px;
-            fill: var(--primary-light);
+            width: 50px;
+            height: 50px;
+            fill: var(--light);
         }
 
         .feature-card h4 {
-            font-size: 1.8rem;
+            font-size: 2rem;
             font-weight: 800;
             margin-bottom: 1.5rem;
-            color: var(--primary-light);
+            color: var(--light);
+            text-transform: uppercase;
+            letter-spacing: -1px;
         }
 
         .feature-card p {
-            color: var(--primary-gray);
+            color: var(--gray);
             line-height: 1.9;
             font-size: 1.1rem;
         }
 
         /* Stats Section */
         .stats {
-            background: var(--primary-dark-red);
-            padding: 6rem 3rem;
-            margin: 8rem 0;
+            background: var(--dark-red);
+            padding: 8rem 5%;
+            margin: 10rem 0;
+            position: relative;
         }
 
         .stats-grid {
             max-width: 1400px;
             margin: 0 auto;
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 4rem;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 5rem;
             text-align: center;
         }
 
+        .stat-item {
+            padding: 3rem;
+            background: rgba(251, 247, 247, 0.05);
+            border-radius: 20px;
+            border: 2px solid rgba(251, 247, 247, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .stat-item:hover {
+            transform: translateY(-10px);
+            background: rgba(251, 247, 247, 0.1);
+            border-color: var(--red);
+        }
+
         .stat-item h4 {
-            font-size: 4.5rem;
+            font-size: 5rem;
             font-weight: 900;
-            color: var(--primary-light);
+            color: var(--light);
             margin-bottom: 1rem;
+            line-height: 1;
         }
 
         .stat-item p {
-            color: var(--primary-gray);
-            font-size: 1.2rem;
-            font-weight: 600;
+            color: var(--gray);
+            font-size: 1.3rem;
+            font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 2px;
+            letter-spacing: 3px;
         }
 
         /* Community Section */
@@ -303,32 +361,32 @@
 
         .community p {
             max-width: 900px;
-            margin: 0 auto 3rem;
-            color: var(--primary-gray);
-            font-size: 1.4rem;
+            margin: 0 auto 4rem;
+            color: var(--gray);
+            font-size: 1.5rem;
             line-height: 2;
         }
 
         /* Footer */
         footer {
-            background: var(--primary-dark);
-            padding: 4rem 3rem;
+            background: var(--dark);
+            padding: 5rem 5%;
             text-align: center;
-            border-top: 2px solid rgba(207, 13, 14, 0.2);
+            border-top: 3px solid var(--red);
+        }
+
+        footer img {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 2rem;
+            border-radius: 50%;
+            border: 4px solid var(--red);
         }
 
         footer p {
-            color: var(--primary-gray);
+            color: var(--gray);
             margin-bottom: 1rem;
-            font-size: 1.1rem;
-        }
-
-        footer .footer-logo {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 2rem;
-            border-radius: 50%;
-            border: 3px solid var(--primary-red);
+            font-size: 1.2rem;
         }
 
         /* Responsive */
@@ -352,11 +410,15 @@
             .features {
                 grid-template-columns: 1fr;
             }
+
+            .stat-item h4 {
+                font-size: 3rem;
+            }
         }
     </style>
 </head>
 <body>
-    <nav id="navbar">
+    <nav>
         <div class="container">
             <a href="#home" class="logo">
                 <img src="https://media.discordapp.net/attachments/1561478676850151638/1561543957790330900/q1401r6.png" alt="Jaxdrax Studio">
@@ -388,54 +450,42 @@
         <div class="features">
             <div class="feature-card">
                 <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                    </svg>
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
                 </div>
                 <h4>Aquarium Building</h4>
                 <p>Design and customize your own aquarium with a wide variety of decorations, plants, and tank styles. Express your creativity and build the perfect underwater home for your fish.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
-                    </svg>
+                    <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
                 </div>
                 <h4>Fish Discovery</h4>
                 <p>Discover and collect new fish species as you explore different environments. Each fish has unique behaviors and requirements, making every collection special.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                    </svg>
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
                 </div>
                 <h4>Community Events</h4>
                 <p>Participate in regular community events, competitions, and seasonal updates. Connect with other players and share your aquarium designs.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                    </svg>
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
                 </div>
                 <h4>Relaxing Gameplay</h4>
                 <p>Enjoy a peaceful gaming experience with no pressure or time limits. Play at your own pace and create the aquarium of your dreams.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                    </svg>
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
                 </div>
                 <h4>Regular Updates</h4>
                 <p>We are committed to providing regular content updates, new fish species, decorations, and features based on community feedback.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/>
-                    </svg>
+                    <svg viewBox="0 0 24 24"><path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/></svg>
                 </div>
                 <h4>Cross-Platform</h4>
                 <p>Play on PC, mobile, or console. Your progress is saved across all platforms, so you can enjoy Your Fish Life anywhere.</p>
@@ -469,23 +519,12 @@
     </section>
 
     <footer>
-        <img src="https://media.discordapp.net/attachments/1561478676850151638/1561543957790330900/q1401r6.png" alt="Jaxdrax Studio" class="footer-logo">
+        <img src="https://media.discordapp.net/attachments/1561478676850151638/1561543957790330900/q1401r6.png" alt="Jaxdrax Studio">
         <p>&copy; 2026 Jaxdrax Studio. All rights reserved.</p>
         <p>Your Fish Life is a Roblox experience developed by Jaxdrax Studio.</p>
     </footer>
 
     <script>
-        // Navbar scroll effect
-        const navbar = document.getElementById('navbar');
-        window.addEventListener('scroll', () => {
-            if (window.scrollY > 100) {
-                navbar.classList.add('scrolled');
-            } else {
-                navbar.classList.remove('scrolled');
-            }
-        });
-
-        // Fetch stats from API
         async function fetchStats() {
             try {
                 const response = await fetch('/api/public-stats');
@@ -502,13 +541,9 @@
             }
         }
 
-        // Load stats on page load
         fetchStats();
-        
-        // Refresh stats every 2 minutes
         setInterval(fetchStats, 120000);
 
-        // Smooth scrolling
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function (e) {
                 e.preventDefault();
