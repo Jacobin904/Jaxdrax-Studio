@@ -1,4 +1,4 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
+const { EmbedBuilder } = require('discord.js');
 const { COLORS, LOGO_URL } = require('../config/constants');
 
 module.exports = {
@@ -9,7 +9,7 @@ module.exports = {
             const embed = new EmbedBuilder()
                 .setColor(COLORS.dark)
                 .setTitle('Your Fish Life - Complete Game Information')
-                .setDescription('Comprehensive details regarding the development and status of the Your Fish Life Roblox experience.\n\n**Development Status:**\n• Current Phase: Active Development\n• Last Update: Ongoing\n• Next Milestone: Beta Testing\n\n**Use the buttons below to access game resources and statistics.**')
+                .setDescription('Comprehensive details regarding the development and status of the Your Fish Life Roblox experience.\n\n**Development Status:**\n• Current Phase: Active Development\n• Last Update: Ongoing\n• Next Milestone: Beta Testing')
                 .addFields(
                     { name: 'Developer', value: 'Jaxdrax Studio' },
                     { name: 'Core Features', value: 'Aquarium building, fish species discovery, community relaxation, and regular content updates.' },
@@ -21,44 +21,12 @@ module.exports = {
                 .setFooter({ text: 'Jaxdrax Studio Development Team', iconURL: LOGO_URL })
                 .setTimestamp();
 
-            const row1 = new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId('info_game_link')
-                        .setLabel('Play Game')
-                        .setStyle(ButtonStyle.Link)
-                        .setURL('https://www.roblox.com/games/your-fish-life'),
-                    new ButtonBuilder()
-                        .setCustomId('info_bug_report')
-                        .setLabel('Bug Reports')
-                        .setStyle(ButtonStyle.Danger),
-                    new ButtonBuilder()
-                        .setCustomId('info_suggestions')
-                        .setLabel('Suggestions')
-                        .setStyle(ButtonStyle.Success)
-                );
-
-            const row2 = new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId('info_dev_logs')
-                        .setLabel('View Dev Logs')
-                        .setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder()
-                        .setCustomId('info_roadmap')
-                        .setLabel('Roadmap')
-                        .setStyle(ButtonStyle.Primary)
-                );
-
-            await message.channel.send({ 
-                embeds: [embed], 
-                components: [row1, row2] 
-            });
+            await message.channel.send({ embeds: [embed] });
         } else {
             const embed = new EmbedBuilder()
                 .setColor(COLORS.gray)
                 .setTitle('Your Fish Life - Game Info')
-                .setDescription('Your Fish Life is an upcoming Roblox experience developed by Jaxdrax Studio. Dive into a relaxing and immersive aquarium building simulation where you can discover new fish species, customize your tanks, and connect with a growing community of players.\n\n**Key Features:**\n• Build and customize your own aquarium\n• Discover and collect new fish species\n• Relaxing gameplay with regular updates\n• Active community and support\n\n**Use the buttons below to explore and get involved.**')
+                .setDescription('Your Fish Life is an upcoming Roblox experience developed by Jaxdrax Studio. Dive into a relaxing and immersive aquarium building simulation where you can discover new fish species, customize your tanks, and connect with a growing community of players.\n\n**Key Features:**\n• Build and customize your own aquarium\n• Discover and collect new fish species\n• Relaxing gameplay with regular updates\n• Active community and support')
                 .addFields(
                     { name: 'Developer', value: 'Jaxdrax Studio' },
                     { name: 'Status', value: 'Currently in Development' },
@@ -68,39 +36,7 @@ module.exports = {
                 .setFooter({ text: 'Jaxdrax Studio', iconURL: LOGO_URL })
                 .setTimestamp();
 
-            const row1 = new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId('info_game_link')
-                        .setLabel('Play Game')
-                        .setStyle(ButtonStyle.Link)
-                        .setURL('https://www.roblox.com/games/your-fish-life'),
-                    new ButtonBuilder()
-                        .setCustomId('info_join_discord')
-                        .setLabel('Join Discord')
-                        .setStyle(ButtonStyle.Primary),
-                    new ButtonBuilder()
-                        .setCustomId('info_support')
-                        .setLabel('Get Support')
-                        .setStyle(ButtonStyle.Success)
-                );
-
-            const row2 = new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId('info_bug_report')
-                        .setLabel('Report Bug')
-                        .setStyle(ButtonStyle.Danger),
-                    new ButtonBuilder()
-                        .setCustomId('info_suggestions')
-                        .setLabel('Suggest Feature')
-                        .setStyle(ButtonStyle.Secondary)
-                );
-
-            await message.reply({ 
-                embeds: [embed], 
-                components: [row1, row2] 
-            });
+            await message.reply({ embeds: [embed] });
         }
     }
 };
