@@ -21,6 +21,9 @@ const client = new Client({
 
 client.commands = new Collection();
 
+// Variable globale pour Roblox (DOIT ÊTRE DÉCLARÉE ICI)
+const robloxPresence = { onlinePlayers: 0, totalPlayers: 0, serverStatus: 'Unknown' };
+
 // Charger les commandes
 const commandsPath = path.join(__dirname, 'commands');
 const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
@@ -51,7 +54,8 @@ client.on('messageCreate', async (message) => {
     
     if (!message.content.startsWith('!')) return;
     
-    const commandName = message.content.slice(1).split(' ')[0].toLowerCase();
+    const args = message.content.slice(1).trim().split(/ +/);
+    const commandName = args.shift().toLowerCase();
     const command = client.commands.get(commandName);
     
     if (command) {
@@ -59,19 +63,21 @@ client.on('messageCreate', async (message) => {
             await command.execute(message, isStaff, robloxPresence);
         } catch (error) {
             console.error(`Error executing ${commandName}:`, error);
+            await message.reply({ 
+                content: 'There was an error trying to execute that command!',
+                ephemeral: true 
+            });
         }
     }
 });
 
-// Variable globale pour Roblox
-const robloxPresence = { onlinePlayers: 0, totalPlayers: 0, serverStatus: 'Unknown' };
-
 // Démarrer le bot
-client.login(process.env.DISCORD_TOKEN);
-
-// Démarrer l'API
-const createApiServer = require('./api/server');
-createApiServer(client, robloxPresence, () => {
-    const readyEvent = require('./events/ready');
-    readyEvent.execute(client, robloxPresence);
+client.login(process.env.DISCORD_TOKEN).then(() => {
+    console.log('Bot logged in successfully');
+    
+    // Démarrer l'API
+    const createApiServer = require('./api/server');
+    createApiServer(client, robloxPresence);
+}).catch(error => {
+    console.error('Failed to login:', error);
 });
