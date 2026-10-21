@@ -19,9 +19,6 @@
             --primary-dark-red: #6c0b0d;
             --primary-gray: #a49f9e;
             --primary-light: #fbf7f7;
-            --gradient-1: linear-gradient(135deg, #cf0d0e 0%, #6c0b0d 100%);
-            --gradient-2: linear-gradient(135deg, #242120 0%, #6c0b0d 100%);
-            --gradient-3: linear-gradient(135deg, #fbf7f7 0%, #a49f9e 100%);
         }
 
         html {
@@ -36,35 +33,13 @@
             overflow-x: hidden;
         }
 
-        /* Animated Background */
-        .bg-animation {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -1;
-            opacity: 0.1;
-            background: 
-                radial-gradient(circle at 20% 50%, rgba(207, 13, 14, 0.3) 0%, transparent 50%),
-                radial-gradient(circle at 80% 80%, rgba(108, 11, 13, 0.3) 0%, transparent 50%),
-                radial-gradient(circle at 40% 20%, rgba(251, 247, 247, 0.1) 0%, transparent 50%);
-            animation: bgShift 20s ease-in-out infinite;
-        }
-
-        @keyframes bgShift {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            50% { transform: translate(-50px, -50px) scale(1.1); }
-        }
-
         /* Navigation */
         nav {
             position: fixed;
             top: 0;
             width: 100%;
-            background: rgba(36, 33, 32, 0.8);
+            background: rgba(36, 33, 32, 0.95);
             backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
             padding: 1.5rem 0;
             z-index: 1000;
             border-bottom: 1px solid rgba(207, 13, 14, 0.2);
@@ -73,7 +48,7 @@
 
         nav.scrolled {
             padding: 1rem 0;
-            background: rgba(36, 33, 32, 0.95);
+            background: rgba(36, 33, 32, 0.98);
         }
 
         nav .container {
@@ -97,22 +72,18 @@
             height: 60px;
             border-radius: 50%;
             border: 3px solid var(--primary-red);
-            box-shadow: 0 0 30px rgba(207, 13, 14, 0.5);
             transition: all 0.3s ease;
         }
 
         .logo:hover img {
-            transform: rotate(360deg) scale(1.1);
-            box-shadow: 0 0 50px rgba(207, 13, 14, 0.8);
+            transform: scale(1.1);
+            box-shadow: 0 0 30px rgba(207, 13, 14, 0.5);
         }
 
         .logo h1 {
             font-size: 1.8rem;
             font-weight: 800;
-            background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary-red) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: var(--primary-light);
             letter-spacing: -0.5px;
         }
 
@@ -129,19 +100,17 @@
             font-size: 1rem;
             transition: all 0.3s ease;
             position: relative;
-            padding: 0.5rem 0;
         }
 
         nav a::after {
             content: '';
             position: absolute;
-            bottom: 0;
+            bottom: -5px;
             left: 0;
             width: 0;
-            height: 3px;
-            background: var(--gradient-1);
+            height: 2px;
+            background: var(--primary-red);
             transition: width 0.3s ease;
-            border-radius: 2px;
         }
 
         nav a:hover::after {
@@ -150,7 +119,6 @@
 
         nav a:hover {
             color: var(--primary-red);
-            transform: translateY(-2px);
         }
 
         /* Hero Section */
@@ -162,30 +130,13 @@
             text-align: center;
             padding: 8rem 3rem 4rem;
             position: relative;
-            overflow: hidden;
-        }
-
-        .hero::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 800px;
-            height: 800px;
-            background: radial-gradient(circle, rgba(207, 13, 14, 0.15) 0%, transparent 70%);
-            animation: pulse 4s ease-in-out infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.5; }
-            50% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.8; }
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-dark-red) 100%);
         }
 
         .hero-content {
+            max-width: 900px;
             position: relative;
             z-index: 1;
-            max-width: 1000px;
         }
 
         .hero-badge {
@@ -197,114 +148,42 @@
             font-size: 0.9rem;
             font-weight: 600;
             margin-bottom: 2rem;
-            backdrop-filter: blur(10px);
-            animation: fadeInDown 1s ease;
+            color: var(--primary-light);
         }
 
         .hero h2 {
             font-size: 5rem;
             font-weight: 900;
             margin-bottom: 2rem;
-            background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary-red) 50%, var(--primary-dark-red) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: var(--primary-light);
             line-height: 1.1;
             letter-spacing: -2px;
-            animation: fadeInUp 1s ease 0.2s backwards;
         }
 
         .hero p {
             font-size: 1.5rem;
             color: var(--primary-gray);
             margin-bottom: 3rem;
-            max-width: 800px;
-            margin-left: auto;
-            margin-right: auto;
             line-height: 1.8;
-            animation: fadeInUp 1s ease 0.4s backwards;
-        }
-
-        .cta-buttons {
-            display: flex;
-            gap: 2rem;
-            justify-content: center;
-            flex-wrap: wrap;
-            animation: fadeInUp 1s ease 0.6s backwards;
         }
 
         .cta-button {
-            display: inline-flex;
-            align-items: center;
-            gap: 1rem;
+            display: inline-block;
+            background: var(--primary-red);
+            color: var(--primary-light);
             padding: 1.5rem 3rem;
             text-decoration: none;
             border-radius: 50px;
             font-weight: 700;
             font-size: 1.1rem;
             transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .cta-button::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-            transition: left 0.5s ease;
-        }
-
-        .cta-button:hover::before {
-            left: 100%;
-        }
-
-        .cta-primary {
-            background: var(--gradient-1);
-            color: var(--primary-light);
             box-shadow: 0 10px 40px rgba(207, 13, 14, 0.4);
         }
 
-        .cta-primary:hover {
-            transform: translateY(-5px);
+        .cta-button:hover {
+            transform: translateY(-3px);
             box-shadow: 0 15px 50px rgba(207, 13, 14, 0.6);
-        }
-
-        .cta-secondary {
-            background: transparent;
-            color: var(--primary-light);
-            border: 2px solid var(--primary-red);
-        }
-
-        .cta-secondary:hover {
-            background: var(--primary-red);
-            transform: translateY(-5px);
-            box-shadow: 0 15px 50px rgba(207, 13, 14, 0.4);
-        }
-
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(50px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes fadeInDown {
-            from {
-                opacity: 0;
-                transform: translateY(-50px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            background: var(--primary-dark-red);
         }
 
         /* Sections */
@@ -312,7 +191,6 @@
             padding: 8rem 3rem;
             max-width: 1400px;
             margin: 0 auto;
-            position: relative;
         }
 
         .section-header {
@@ -324,10 +202,7 @@
             font-size: 3.5rem;
             font-weight: 900;
             margin-bottom: 1.5rem;
-            background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary-red) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: var(--primary-light);
             letter-spacing: -1px;
         }
 
@@ -347,54 +222,34 @@
 
         .feature-card {
             background: rgba(164, 159, 158, 0.05);
-            backdrop-filter: blur(10px);
             padding: 3rem;
-            border-radius: 30px;
+            border-radius: 20px;
             border: 1px solid rgba(207, 13, 14, 0.2);
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .feature-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: var(--gradient-1);
-            transform: scaleX(0);
-            transition: transform 0.4s ease;
-            transform-origin: left;
-        }
-
-        .feature-card:hover::before {
-            transform: scaleX(1);
+            transition: all 0.3s ease;
         }
 
         .feature-card:hover {
-            transform: translateY(-15px);
+            transform: translateY(-10px);
             background: rgba(164, 159, 158, 0.1);
             border-color: var(--primary-red);
-            box-shadow: 0 30px 60px rgba(207, 13, 14, 0.3);
+            box-shadow: 0 20px 40px rgba(207, 13, 14, 0.2);
         }
 
         .feature-icon {
             width: 80px;
             height: 80px;
-            background: var(--gradient-1);
+            background: var(--primary-red);
             border-radius: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 2.5rem;
             margin-bottom: 2rem;
-            transition: all 0.3s ease;
         }
 
-        .feature-card:hover .feature-icon {
-            transform: rotate(360deg) scale(1.1);
+        .feature-icon svg {
+            width: 40px;
+            height: 40px;
+            fill: var(--primary-light);
         }
 
         .feature-card h4 {
@@ -402,7 +257,6 @@
             font-weight: 800;
             margin-bottom: 1.5rem;
             color: var(--primary-light);
-            letter-spacing: -0.5px;
         }
 
         .feature-card p {
@@ -413,27 +267,9 @@
 
         /* Stats Section */
         .stats {
-            background: var(--gradient-2);
+            background: var(--primary-dark-red);
             padding: 6rem 3rem;
             margin: 8rem 0;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .stats::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            right: -50%;
-            width: 100%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(207, 13, 14, 0.1) 0%, transparent 70%);
-            animation: rotate 20s linear infinite;
-        }
-
-        @keyframes rotate {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
         }
 
         .stats-grid {
@@ -442,35 +278,14 @@
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 4rem;
-            position: relative;
-            z-index: 1;
-        }
-
-        .stat-item {
             text-align: center;
-            padding: 3rem 2rem;
-            background: rgba(251, 247, 247, 0.05);
-            backdrop-filter: blur(10px);
-            border-radius: 30px;
-            border: 1px solid rgba(251, 247, 247, 0.1);
-            transition: all 0.3s ease;
-        }
-
-        .stat-item:hover {
-            transform: translateY(-10px);
-            background: rgba(251, 247, 247, 0.1);
-            border-color: var(--primary-red);
         }
 
         .stat-item h4 {
             font-size: 4.5rem;
             font-weight: 900;
-            background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary-red) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: var(--primary-light);
             margin-bottom: 1rem;
-            letter-spacing: -2px;
         }
 
         .stat-item p {
@@ -486,16 +301,12 @@
             text-align: center;
         }
 
-        .community-content {
-            max-width: 900px;
-            margin: 0 auto;
-        }
-
         .community p {
-            font-size: 1.4rem;
+            max-width: 900px;
+            margin: 0 auto 3rem;
             color: var(--primary-gray);
+            font-size: 1.4rem;
             line-height: 2;
-            margin-bottom: 4rem;
         }
 
         /* Footer */
@@ -520,18 +331,6 @@
             border: 3px solid var(--primary-red);
         }
 
-        /* Scroll Animations */
-        .fade-in {
-            opacity: 0;
-            transform: translateY(50px);
-            transition: all 0.8s ease;
-        }
-
-        .fade-in.visible {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
         /* Responsive */
         @media (max-width: 768px) {
             .hero h2 {
@@ -546,11 +345,6 @@
                 display: none;
             }
 
-            nav .container {
-                flex-direction: column;
-                gap: 1rem;
-            }
-
             .section-header h3 {
                 font-size: 2.5rem;
             }
@@ -558,20 +352,10 @@
             .features {
                 grid-template-columns: 1fr;
             }
-
-            .cta-buttons {
-                flex-direction: column;
-            }
-
-            .stat-item h4 {
-                font-size: 3rem;
-            }
         }
     </style>
 </head>
 <body>
-    <div class="bg-animation"></div>
-
     <nav id="navbar">
         <div class="container">
             <a href="#home" class="logo">
@@ -589,55 +373,70 @@
 
     <section class="hero" id="home">
         <div class="hero-content">
-            <div class="hero-badge">🎮 Coming Soon to Roblox</div>
+            <div class="hero-badge">Coming Soon to Roblox</div>
             <h2>Your Fish Life</h2>
             <p>Dive into a relaxing and immersive aquarium building simulation. Discover new fish species, customize your tanks, and connect with a growing community of players.</p>
-            <div class="cta-buttons">
-                <a href="https://discord.gg/your-server" class="cta-button cta-primary">
-                    <span>🎮</span>
-                    <span>Join Discord</span>
-                </a>
-                <a href="#features" class="cta-button cta-secondary">
-                    <span>✨</span>
-                    <span>Explore Features</span>
-                </a>
-            </div>
+            <a href="https://discord.gg/your-server" class="cta-button">Join Discord</a>
         </div>
     </section>
 
     <section id="features">
-        <div class="section-header fade-in">
+        <div class="section-header">
             <h3>Key Features</h3>
             <p>Discover what makes Your Fish Life a unique and engaging experience</p>
         </div>
         <div class="features">
-            <div class="feature-card fade-in">
-                <div class="feature-icon">🐠</div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                </div>
                 <h4>Aquarium Building</h4>
                 <p>Design and customize your own aquarium with a wide variety of decorations, plants, and tank styles. Express your creativity and build the perfect underwater home for your fish.</p>
             </div>
-            <div class="feature-card fade-in">
-                <div class="feature-icon">🔍</div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                    </svg>
+                </div>
                 <h4>Fish Discovery</h4>
                 <p>Discover and collect new fish species as you explore different environments. Each fish has unique behaviors and requirements, making every collection special.</p>
             </div>
-            <div class="feature-card fade-in">
-                <div class="feature-icon">🎉</div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                </div>
                 <h4>Community Events</h4>
                 <p>Participate in regular community events, competitions, and seasonal updates. Connect with other players and share your aquarium designs.</p>
             </div>
-            <div class="feature-card fade-in">
-                <div class="feature-icon">🧘</div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                </div>
                 <h4>Relaxing Gameplay</h4>
                 <p>Enjoy a peaceful gaming experience with no pressure or time limits. Play at your own pace and create the aquarium of your dreams.</p>
             </div>
-            <div class="feature-card fade-in">
-                <div class="feature-icon">🔄</div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                </div>
                 <h4>Regular Updates</h4>
                 <p>We are committed to providing regular content updates, new fish species, decorations, and features based on community feedback.</p>
             </div>
-            <div class="feature-card fade-in">
-                <div class="feature-icon">📱</div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/>
+                    </svg>
+                </div>
                 <h4>Cross-Platform</h4>
                 <p>Play on PC, mobile, or console. Your progress is saved across all platforms, so you can enjoy Your Fish Life anywhere.</p>
             </div>
@@ -646,15 +445,15 @@
 
     <section class="stats" id="stats">
         <div class="stats-grid">
-            <div class="stat-item fade-in">
+            <div class="stat-item">
                 <h4 id="member-count">--</h4>
                 <p>Discord Members</p>
             </div>
-            <div class="stat-item fade-in">
+            <div class="stat-item">
                 <h4 id="player-count">--</h4>
                 <p>Players Online</p>
             </div>
-            <div class="stat-item fade-in">
+            <div class="stat-item">
                 <h4>Active</h4>
                 <p>Development</p>
             </div>
@@ -662,18 +461,11 @@
     </section>
 
     <section class="community" id="community">
-        <div class="section-header fade-in">
+        <div class="section-header">
             <h3>Join Our Community</h3>
         </div>
-        <div class="community-content fade-in">
-            <p>Connect with other players, get the latest updates, report bugs, and suggest features in our official Discord server. Our friendly community and dedicated support team are here to help you make the most of Your Fish Life.</p>
-            <div class="cta-buttons">
-                <a href="https://discord.gg/your-server" class="cta-button cta-primary">
-                    <span>💬</span>
-                    <span>Join Discord Server</span>
-                </a>
-            </div>
-        </div>
+        <p>Connect with other players, get the latest updates, report bugs, and suggest features in our official Discord server. Our friendly community and dedicated support team are here to help you make the most of Your Fish Life.</p>
+        <a href="https://discord.gg/your-server" class="cta-button">Join Discord Server</a>
     </section>
 
     <footer>
@@ -693,22 +485,6 @@
             }
         });
 
-        // Scroll animations
-        const observerOptions = {
-            threshold: 0.1,
-            rootMargin: '0px 0px -100px 0px'
-        };
-
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add('visible');
-                }
-            });
-        }, observerOptions);
-
-        document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
-
         // Fetch stats from API
         async function fetchStats() {
             try {
@@ -716,31 +492,14 @@
                 const data = await response.json();
                 
                 if (data.memberCount) {
-                    animateValue('member-count', 0, data.memberCount, 2000);
+                    document.getElementById('member-count').textContent = data.memberCount;
                 }
                 if (data.robloxPresence && data.robloxPresence.onlinePlayers !== undefined) {
-                    animateValue('player-count', 0, data.robloxPresence.onlinePlayers, 2000);
+                    document.getElementById('player-count').textContent = data.robloxPresence.onlinePlayers;
                 }
             } catch (error) {
                 console.error('Error fetching stats:', error);
             }
-        }
-
-        // Animate counter
-        function animateValue(id, start, end, duration) {
-            const obj = document.getElementById(id);
-            const range = end - start;
-            const increment = end > start ? 1 : -1;
-            let current = start;
-            const stepTime = Math.abs(Math.floor(duration / range));
-            
-            const timer = setInterval(() => {
-                current += increment;
-                obj.textContent = current;
-                if (current === end) {
-                    clearInterval(timer);
-                }
-            }, stepTime);
         }
 
         // Load stats on page load
