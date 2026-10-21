@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jaxdrax Studio - Your Fish Life</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #242120;
+            color: #fbf7f7;
+            line-height: 1.6;
+        }
+
+        header {
+            background-color: #6c0b0d;
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo-container img {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+        }
+
+        .logo-container h1 {
+            font-size: 1.5rem;
+            color: #fbf7f7;
+        }
+
+        nav ul {
+            display: flex;
+            list-style: none;
+            gap: 2rem;
+        }
+
+        nav a {
+            color: #fbf7f7;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        nav a:hover {
+            color: #cf0d0e;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, #242120 0%, #6c0b0d 100%);
+            padding: 6rem 2rem;
+            text-align: center;
+        }
+
+        .hero h2 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: #fbf7f7;
+        }
+
+        .hero p {
+            font-size: 1.2rem;
+            color: #a49f9e;
+            max-width: 800px;
+            margin: 0 auto 2rem;
+        }
+
+        .cta-button {
+            display: inline-block;
+            background-color: #cf0d0e;
+            color: #fbf7f7;
+            padding: 1rem 2rem;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+
+        .cta-button:hover {
+            background-color: #6c0b0d;
+        }
+
+        .section {
+            padding: 4rem 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section h3 {
+            font-size: 2rem;
+            margin-bottom: 2rem;
+            color: #cf0d0e;
+            text-align: center;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .feature-card {
+            background-color: #a49f9e;
+            padding: 2rem;
+            border-radius: 10px;
+            color: #242120;
+        }
+
+        .feature-card h4 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: #6c0b0d;
+        }
+
+        .feature-card p {
+            color: #242120;
+        }
+
+        .stats {
+            background-color: #6c0b0d;
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .stat-item {
+            color: #fbf7f7;
+        }
+
+        .stat-item h4 {
+            font-size: 2.5rem;
+            color: #fbf7f7;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-item p {
+            color: #a49f9e;
+        }
+
+        footer {
+            background-color: #242120;
+            padding: 2rem;
+            text-align: center;
+            color: #a49f9e;
+            border-top: 2px solid #6c0b0d;
+        }
+
+        @media (max-width: 768px) {
+            .hero h2 {
+                font-size: 2rem;
+            }
+
+            nav ul {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            header {
+                flex-direction: column;
+                gap: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo-container">
+            <img src="https://media.discordapp.net/attachments/1561478676850151638/1561543957790330900/q1401r6.png" alt="Jaxdrax Studio Logo">
+            <h1>Jaxdrax Studio</h1>
+        </div>
+        <nav>
+            <ul>
+                <li><a href="#home">Home</a></li>
+                <li><a href="#about">About</a></li>
+                <li><a href="#features">Features</a></li>
+                <li><a href="#community">Community</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <section class="hero" id="home">
+        <h2>Your Fish Life</h2>
+        <p>Dive into a relaxing and immersive aquarium building simulation where you can discover new fish species, customize your tanks, and connect with a growing community of players.</p>
+        <a href="https://discord.gg/your-server" class="cta-button">Join Our Discord</a>
+    </section>
+
+    <section class="section" id="about">
+        <h3>About the Game</h3>
+        <p style="text-align: center; max-width: 800px; margin: 0 auto; color: #a49f9e;">
+            Your Fish Life is an upcoming Roblox experience developed by Jaxdrax Studio. Build your dream aquarium, discover unique fish species, and relax in a peaceful underwater world. Our game focuses on creativity, exploration, and community interaction.
+        </p>
+    </section>
+
+    <section class="section" id="features">
+        <h3>Key Features</h3>
+        <div class="features">
+            <div class="feature-card">
+                <h4>Aquarium Building</h4>
+                <p>Design and customize your own aquarium with a wide variety of decorations, plants, and tank styles. Express your creativity and build the perfect underwater home for your fish.</p>
+            </div>
+            <div class="feature-card">
+                <h4>Fish Discovery</h4>
+                <p>Discover and collect new fish species as you explore different environments. Each fish has unique behaviors and requirements, making every collection special.</p>
+            </div>
+            <div class="feature-card">
+                <h4>Community Events</h4>
+                <p>Participate in regular community events, competitions, and seasonal updates. Connect with other players and share your aquarium designs.</p>
+            </div>
+            <div class="feature-card">
+                <h4>Relaxing Gameplay</h4>
+                <p>Enjoy a peaceful gaming experience with no pressure or time limits. Play at your own pace and create the aquarium of your dreams.</p>
+            </div>
+            <div class="feature-card">
+                <h4>Regular Updates</h4>
+                <p>We are committed to providing regular content updates, new fish species, decorations, and features based on community feedback.</p>
+            </div>
+            <div class="feature-card">
+                <h4>Cross-Platform</h4>
+                <p>Play on PC, mobile, or console. Your progress is saved across all platforms, so you can enjoy Your Fish Life anywhere.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="stats">
+        <div class="stats-grid">
+            <div class="stat-item">
+                <h4 id="member-count">--</h4>
+                <p>Discord Members</p>
+            </div>
+            <div class="stat-item">
+                <h4 id="player-count">--</h4>
+                <p>Players Online</p>
+            </div>
+            <div class="stat-item">
+                <h4>Active</h4>
+                <p>Development Status</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="section" id="community">
+        <h3>Join Our Community</h3>
+        <p style="text-align: center; max-width: 800px; margin: 0 auto 2rem; color: #a49f9e;">
+            Connect with other players, get the latest updates, report bugs, and suggest features in our official Discord server. Our friendly community and dedicated support team are here to help you make the most of Your Fish Life.
+        </p>
+        <div style="text-align: center;">
+            <a href="https://discord.gg/your-server" class="cta-button">Join Discord Server</a>
+        </div>
+    </section>
+
+    <footer>
+        <p>&copy; 2026 Jaxdrax Studio. All rights reserved.</p>
+        <p>Your Fish Life is a Roblox experience developed by Jaxdrax Studio.</p>
+    </footer>
+
+    <script>
+        // Fetch stats from API
+        async function fetchStats() {
+            try {
+                const response = await fetch('/api/public-stats');
+                const data = await response.json();
+                
+                if (data.memberCount) {
+                    document.getElementById('member-count').textContent = data.memberCount;
+                }
+                if (data.robloxPresence && data.robloxPresence.onlinePlayers !== undefined) {
+                    document.getElementById('player-count').textContent = data.robloxPresence.onlinePlayers;
+                }
+            } catch (error) {
+                console.error('Error fetching stats:', error);
+            }
+        }
+
+        // Load stats on page load
+        fetchStats();
+        
+        // Refresh stats every 2 minutes
+        setInterval(fetchStats, 120000);
+    </script>
+</body>
+</html>
