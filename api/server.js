@@ -1,8 +1,13 @@
 const express = require('express');
+const path = require('path');
 
 module.exports = function createApiServer(client, robloxPresence, updateBotPresence) {
     const app = express();
     app.use(express.json());
+    
+    // Servir les fichiers statiques du dossier public
+    app.use(express.static(path.join(__dirname, '..', 'public')));
+    
     const PORT = process.env.PORT || 3000;
 
     function verifyRobloxKey(req, res, next) {
@@ -12,10 +17,24 @@ module.exports = function createApiServer(client, robloxPresence, updateBotPrese
         next();
     }
 
+    // Page d'accueil - servir le fichier HTML
     app.get('/', (req, res) => {
-        res.status(200).send('Jaxdrax Studio Bot is running smoothly');
+        res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
     });
 
+    // API publique pour le site web (pas besoin de clé)
+    app.get('/api/public-stats', (req, res) => {
+        const guild = client.guilds.cache.first();
+        if (!guild) return res.status(404).json({ error: 'No guild found' });
+        
+        res.json({
+            memberCount: guild.memberCount,
+            botOnline: true,
+            robloxPresence: robloxPresence
+        });
+    });
+
+    // API Roblox (protégée par clé)
     app.post('/api/update-presence', verifyRobloxKey, (req, res) => {
         try {
             const { onlinePlayers, totalPlayers, serverStatus } = req.body;
@@ -69,5 +88,5 @@ module.exports = function createApiServer(client, robloxPresence, updateBotPrese
         });
     });
 
-    app.listen(PORT, () => console.log(`API and health check server running on port ${PORT}`));
+    app.listen(PORT, () => console.log(`Web server and API running on port ${PORT}`));
 };
