@@ -351,3 +351,118 @@ module.exports = {
         }
     }
 };
+
+        // Rules Send Modal
+        if (interaction.customId === 'rules_send_modal') {
+            const query = interaction.fields.getTextInputValue('member_id');
+            
+            // Importer la fonction findMember
+            const findMember = async (guild, query) => {
+                const cleanQuery = query.replace(/[<@!>]/g, '').trim();
+                
+                if (/^\d{17,19}$/.test(cleanQuery)) {
+                    try {
+                        return await guild.members.fetch(cleanQuery);
+                    } catch (error) {}
+                }
+                
+                const cachedMember = guild.members.cache.find(m => 
+                    m.user.username.toLowerCase() === cleanQuery.toLowerCase() ||
+                    m.user.tag.toLowerCase() === cleanQuery.toLowerCase() ||
+                    m.nickname?.toLowerCase() === cleanQuery.toLowerCase()
+                );
+                
+                if (cachedMember) return cachedMember;
+                
+                try {
+                    const members = await guild.members.fetch({ query: cleanQuery, limit: 10 });
+                    if (members.size > 0) return members.first();
+                } catch (error) {}
+                
+                return null;
+            };
+            
+            const member = await findMember(interaction.guild, query);
+            
+            if (!member) {
+                return interaction.reply({ 
+                    embeds: [new EmbedBuilder()
+                        .setColor(COLORS.red)
+                        .setTitle('Error')
+                        .setDescription('Could not find member.')
+                        .setTimestamp()],
+                    flags: MessageFlags.Ephemeral
+                });
+            }
+            
+            try {
+                await member.send({
+                    embeds: [new EmbedBuilder()
+                        .setColor(COLORS.red)
+                        .setTitle('Server Rules')
+                        .setDescription('Please read and follow the server rules carefully.\n\n**1. Respect Everyone**\n**2. No Spam or Self Promotion**\n**3. Keep Channels Organized**\n**4. No Exploits or Cheating**\n**5. Follow Discord TOS**\n**6. Staff Decisions are Final**\n\nFor the complete rules, please visit the rules channel in the server.')
+                        .setThumbnail(LOGO_URL)
+                        .setFooter({ text: 'Jaxdrax Studio', iconURL: LOGO_URL })
+                        .setTimestamp()]
+                });
+                
+                await interaction.reply({ 
+                    embeds: [new EmbedBuilder()
+                        .setColor('#2ecc71')
+                        .setTitle('Rules Sent')
+                        .setDescription(`Rules have been sent to ${member.user.tag} via DM.`)
+                        .setTimestamp()],
+                    flags: MessageFlags.Ephemeral
+                });
+            } catch (error) {
+                await interaction.reply({ 
+                    embeds: [new EmbedBuilder()
+                        .setColor(COLORS.red)
+                        .setTitle('Error')
+                        .setDescription('Could not send rules. The member may have DMs disabled.')
+                        .setTimestamp()],
+                    flags: MessageFlags.Ephemeral
+                });
+            }
+            return;
+        }
+
+        // Rules Report Modal
+        if (interaction.customId === 'rules_report_modal') {
+            const offender = interaction.fields.getTextInputValue('offender');
+            const description = interaction.fields.getTextInputValue('description');
+            
+            const devLogsChannel = interaction.guild.channels.cache.get(process.env.DEV_LOGS_CHANNEL_ID);
+            
+            if (devLogsChannel) {
+                const reportEmbed = new EmbedBuilder()
+                    .setColor(COLORS.red)
+                    .setTitle('Rule Violation Report')
+                    .setDescription('A new rule violation has been reported.')
+                    .addFields(
+                        { name: 'Reported by', value: `${interaction.user.tag} (${interaction.user.id})` },
+                        { name: 'Offender', value: offender },
+                        { name: 'Description', value: description.substring(0, 1024) },
+                        { name: 'Time', value: `<t:${Math.floor(Date.now() / 1000)}:F>` }
+                    )
+                    .setThumbnail(LOGO_URL)
+                    .setFooter({ text: 'Jaxdrax Studio Reports', iconURL: LOGO_URL })
+                    .setTimestamp();
+                
+                await devLogsChannel.send({ 
+                    content: '<@&' + interaction.guild.roles.cache.find(r => r.name === 'Moderator')?.id + '>',
+                    embeds: [reportEmbed] 
+                });
+            }
+            
+            await interaction.reply({ 
+                embeds: [new EmbedBuilder()
+                    .setColor('#2ecc71')
+                    .setTitle('Report Submitted')
+                    .setDescription('Your report has been submitted to the moderation team. A staff member will review it shortly.\n\nThank you for helping keep the community safe!')
+                    .setThumbnail(LOGO_URL)
+                    .setTimestamp()],
+                flags: MessageFlags.Ephemeral
+            });
+            return;
+        }
