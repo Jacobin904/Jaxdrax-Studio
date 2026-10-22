@@ -6,7 +6,13 @@ module.exports = {
     name: 'interactionCreate',
     async execute(interaction, client) {
         try {
+            // Review system (gere en autonomie)
+            if (typeof interaction.customId === 'string' && interaction.customId.startsWith('review_')) {
+                return await reviewCommand.handleInteraction(interaction);
+            }
+
             if (interaction.isButton()) {
+                // ... le reste de ton code existant, inchange
                 // OPEN TICKET
                 if (interaction.customId === 'open_ticket') {
                     const ticketChannelName = `ticket-${interaction.user.username}`.toLowerCase().replace(/[^a-z0-9-]/g, '');
