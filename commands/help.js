@@ -14,6 +14,7 @@ module.exports = {
                 { name: '!info', value: 'Provides information about Your Fish Life. Staff members get development details and stats, while members get a general overview.' },
                 { name: '!ticket', value: 'For staff: displays the ticket panel with a button. For members: shows instructions on how to open a support ticket.' },
                 { name: '!config', value: 'Staff only. Sends a complete dump of the server configuration (IDs of all channels, roles, categories) to your DMs.' }
+                { name: '!review', value: 'Submit a review for the server or for a specific staff member. Available to all members. Your username is displayed with your review.' },
             )
             .setThumbnail(LOGO_URL)
             .setFooter({ text: 'Jaxdrax Studio Support', iconURL: LOGO_URL })
