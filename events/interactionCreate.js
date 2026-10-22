@@ -1,5 +1,6 @@
 const { EmbedBuilder, ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, MessageFlags } = require('discord.js');
 const { COLORS, LOGO_URL, STAFF_ROLES } = require('../config/constants');
+const reviewCommand = require('../commands/review');
 
 module.exports = {
     name: 'interactionCreate',
