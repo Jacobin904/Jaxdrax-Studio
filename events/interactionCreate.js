@@ -12,6 +12,62 @@ module.exports = {
             }
 
             if (interaction.isButton()) {
+
+                                // INFO LICENSE BUTTON
+                if (interaction.customId === 'info_view_license') {
+                    const licenseEmbed = new EmbedBuilder()
+                        .setColor(COLORS.dark)
+                        .setTitle('Proprietary Software License')
+                        .setDescription('**Copyright (c) 2026 Jaxdrax Studio. All Rights Reserved.**\n\nThis software is the exclusive property of Jaxdrax Studio and is protected by copyright laws and international treaties.\n\n**UNAUTHORIZED USE IS STRICTLY PROHIBITED.**')
+                        .addFields(
+                            {
+                                name: 'No Reproduction',
+                                value: 'You may not copy, reproduce, distribute, modify, display, perform, prepare derivative works of, or use the Software, in whole or in part, without explicit written permission from Jaxdrax Studio.',
+                                inline: false
+                            },
+                            {
+                                name: 'No Modification',
+                                value: 'You may not alter, adapt, translate, or create derivative works based upon the Software or any part thereof.',
+                                inline: false
+                            },
+                            {
+                                name: 'No Distribution',
+                                value: 'You may not distribute, sublicense, lease, rent, lend, or otherwise transfer the Software or any rights therein to any third party.',
+                                inline: false
+                            },
+                            {
+                                name: 'No Commercial Use',
+                                value: 'You may not use the Software for any commercial purposes, including but not limited to selling, licensing, or monetizing the Software or any derivative works.',
+                                inline: false
+                            },
+                            {
+                                name: 'No Reverse Engineering',
+                                value: 'You may not reverse engineer, decompile, disassemble, or otherwise attempt to derive the source code of the Software.',
+                                inline: false
+                            },
+                            {
+                                name: 'Ownership',
+                                value: 'Jaxdrax Studio retains all right, title, and interest in and to the Software, including all intellectual property rights therein. This license does not grant you any ownership rights.',
+                                inline: false
+                            },
+                            {
+                                name: 'Termination',
+                                value: 'This license will terminate automatically without notice if you fail to comply with any provision. Upon termination, you must destroy all copies of the Software.',
+                                inline: false
+                            },
+                            {
+                                name: 'Legal Notice',
+                                value: 'Unauthorized use of this Software is strictly prohibited and may result in severe civil and criminal penalties.\n\nFor licensing inquiries, contact Jaxdrax Studio directly.',
+                                inline: false
+                            }
+                        )
+                        .setThumbnail(LOGO_URL)
+                        .setFooter({ text: '© 2026 Jaxdrax Studio. All Rights Reserved.', iconURL: LOGO_URL })
+                        .setTimestamp();
+
+                    await interaction.reply({ embeds: [licenseEmbed], flags: MessageFlags.Ephemeral });
+                }
+                
                 // ... le reste de ton code existant, inchange
                 // OPEN TICKET
                 if (interaction.customId === 'open_ticket') {
