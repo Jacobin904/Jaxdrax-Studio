@@ -1,4 +1,4 @@
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { COLORS, LOGO_URL } = require('../config/constants');
 
 module.exports = {
@@ -15,13 +15,21 @@ module.exports = {
                     { name: 'Core Features', value: 'Aquarium building, fish species discovery, community relaxation, and regular content updates.' },
                     { name: 'Discord Stats', value: `Members: ${guild.memberCount}\nRoles: ${guild.roles.cache.size}\nChannels: ${guild.channels.cache.size}` },
                     { name: 'Roblox Live Stats', value: `Players Online: ${robloxPresence.onlinePlayers}\nServer Status: ${robloxPresence.serverStatus}` },
-                    { name: 'Support', value: 'Use the !ticket command or visit the help-desk channel for assistance.' }
+                    { name: 'Support', value: 'Use the !ticket command or visit the help-desk channel for assistance.' },
+                    { name: 'Legal', value: 'This project is protected by a proprietary license. All rights reserved by Jaxdrax Studio.' }
                 )
                 .setThumbnail(LOGO_URL)
                 .setFooter({ text: 'Jaxdrax Studio Development Team', iconURL: LOGO_URL })
                 .setTimestamp();
 
-            await message.channel.send({ embeds: [embed] });
+            const licenseButton = new ButtonBuilder()
+                .setCustomId('info_view_license')
+                .setLabel('View License')
+                .setStyle(ButtonStyle.Secondary);
+
+            const row = new ActionRowBuilder().addComponents(licenseButton);
+
+            await message.channel.send({ embeds: [embed], components: [row] });
         } else {
             const embed = new EmbedBuilder()
                 .setColor(COLORS.gray)
@@ -30,13 +38,21 @@ module.exports = {
                 .addFields(
                     { name: 'Developer', value: 'Jaxdrax Studio' },
                     { name: 'Status', value: 'Currently in Development' },
-                    { name: 'Platform', value: 'Roblox (PC, Mobile, Console)' }
+                    { name: 'Platform', value: 'Roblox (PC, Mobile, Console)' },
+                    { name: 'Legal', value: 'This project is protected by a proprietary license. All rights reserved by Jaxdrax Studio.' }
                 )
                 .setThumbnail(LOGO_URL)
                 .setFooter({ text: 'Jaxdrax Studio', iconURL: LOGO_URL })
                 .setTimestamp();
 
-            await message.reply({ embeds: [embed] });
+            const licenseButton = new ButtonBuilder()
+                .setCustomId('info_view_license')
+                .setLabel('View License')
+                .setStyle(ButtonStyle.Secondary);
+
+            const row = new ActionRowBuilder().addComponents(licenseButton);
+
+            await message.reply({ embeds: [embed], components: [row] });
         }
     }
 };
