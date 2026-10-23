@@ -67,6 +67,34 @@ module.exports = {
 
                     await interaction.reply({ embeds: [licenseEmbed], flags: MessageFlags.Ephemeral });
                 }
+
+                                // INFO TICKET BUTTON - Affiche l'embed ticket
+                if (interaction.customId === 'info_open_ticket') {
+                    const ticketEmbed = new EmbedBuilder()
+                        .setColor(COLORS.darkRed)
+                        .setTitle('Support Ticket System')
+                        .setDescription('Need help? Open a private support ticket to get assistance from the Jaxdrax Studio team.\n\n**How it works:**\n• Click the button below to create a private ticket channel\n• Only you and the staff team will have access\n• Describe your issue in detail\n• A staff member will assist you shortly\n\n**Before opening a ticket:**\n• Ensure you have read the server rules\n• Check if your issue has already been answered\n• Prepare a detailed description of your problem\n\nTickets are for serious inquiries only. Spam or misuse will result in loss of ticket privileges.')
+                        .addFields(
+                            { name: 'What can you get help with?', value: '• Technical issues and bugs\n• Account problems\n• Game-related questions\n• Suggestions and feedback\n• Any other concerns' },
+                            { name: 'Response Time', value: 'Our team typically responds within 24 hours. Complex issues may take longer to resolve.' }
+                        )
+                        .setThumbnail(LOGO_URL)
+                        .setFooter({ text: 'Your Fish Life Support', iconURL: LOGO_URL })
+                        .setTimestamp();
+
+                    const openTicketButton = new ButtonBuilder()
+                        .setCustomId('open_ticket')
+                        .setLabel('Open Support Ticket')
+                        .setStyle(ButtonStyle.Primary);
+
+                    const row = new ActionRowBuilder().addComponents(openTicketButton);
+
+                    await interaction.reply({ 
+                        embeds: [ticketEmbed], 
+                        components: [row],
+                        flags: MessageFlags.Ephemeral
+                    });
+                }
                 
                 // ... le reste de ton code existant, inchange
                 // OPEN TICKET
