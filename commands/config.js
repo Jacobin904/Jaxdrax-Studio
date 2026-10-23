@@ -12,11 +12,8 @@ const { COLORS, LOGO_URL, STAFF_ROLES } = require('../config/constants');
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
 
-/* ==========================================================
-   PLAN DE PERMISSIONS (ADDITIF UNIQUEMENT)
-   ========================================================== */
-
-const ROLE_GRANTS = {
+// Permissions EXACTES pour chaque role (ni plus, ni moins)
+const ROLE_PERMISSIONS = {
     Bot: [
         'ViewChannel', 'SendMessages', 'ReadMessageHistory',
         'EmbedLinks', 'AttachFiles', 'ManageMessages',
@@ -36,42 +33,49 @@ const ROLE_GRANTS = {
     ]
 };
 
-const STAFF_GRANTS = [
+// Permissions pour les roles staff
+const STAFF_PERMISSIONS = [
     'ViewChannel', 'SendMessages', 'ReadMessageHistory',
-    'EmbedLinks', 'AttachFiles', 'ManageMessages'
+    'EmbedLinks', 'AttachFiles', 'ManageMessages',
+    'KickMembers', 'BanMembers', 'TimeoutMembers',
+    'ManageNicknames', 'ModerateMembers'
 ];
 
-const CHANNEL_PLAN = [
-    {
+// Overrides EXACTS pour chaque type de salon
+const CHANNEL_OVERRIDES = {
+    public: {
         channels: ['general-chat', 'media', 'fish-talk', 'bot-commands', 'review'],
         roles: ['Member', 'VIP', 'Beta Tester'],
-        perms: ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'EmbedLinks', 'AttachFiles']
+        allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'EmbedLinks', 'AttachFiles'],
+        deny: ['ManageChannels', 'ManageRoles', 'ManageMessages', 'Administrator']
     },
-    {
+    info: {
         channels: ['rules', 'welcome', 'update', 'informations'],
         roles: ['Member', 'VIP', 'Beta Tester'],
-        perms: ['ViewChannel', 'ReadMessageHistory']
+        allow: ['ViewChannel', 'ReadMessageHistory'],
+        deny: ['SendMessages', 'ManageChannels', 'ManageRoles', 'ManageMessages', 'Administrator']
     },
-    {
+    staff: {
         channels: ['staff-chat', 'moderator-only'],
         roles: STAFF_ROLES,
-        perms: ['ViewChannel', 'SendMessages', 'ReadMessageHistory']
+        allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'],
+        deny: []
     },
-    {
+    logs: {
         channels: ['dev-logs', 'ticket-transcripts'],
-        roles: STAFF_ROLES,
-        perms: ['ViewChannel', 'ReadMessageHistory']
-    },
-    {
-        channels: ['dev-logs', 'ticket-transcripts'],
-        roles: ['Bot'],
-        perms: ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'EmbedLinks', 'AttachFiles']
+        roles: [...STAFF_ROLES, 'Bot'],
+        allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'EmbedLinks', 'AttachFiles'],
+        deny: []
     }
-];
+};
 
-/* ==========================================================
-   CONSTRUCTION DU PLAN (AUCUNE ECRITURE ICI)
-   ========================================================== */
+// Permissions dangereuses a RETIRER des roles non-staff
+const DANGEROUS_PERMISSIONS = [
+    'Administrator', 'ManageGuild', 'ManageRoles', 'ManageChannels',
+    'ManageMessages', 'KickMembers', 'BanMembers', 'ManageNicknames',
+    'ManageWebhooks', 'ManageEmojisAndStickers', 'ManageEvents',
+    'ManageThreads', 'CreatePublicThreads', 'CreatePrivateThreads'
+];
 
 function buildPlan(guild) {
     const changes = [];
@@ -85,30 +89,43 @@ function buildPlan(guild) {
     const roleByName = name =>
         guild.roles.cache.find(r => r.name === name && !r.managed) || null;
 
-    // --- Permissions globales des roles ---
-    const planRole = (role, perms, label) => {
+    // Verification des permissions globales des roles
+    const planRole = (role, expectedPerms, label) => {
         if (!role) return;
-
-        if (role.permissions.has(PermissionFlagsBits.Administrator)) {
-            blocked.push(`${label}: already has Administrator, left untouched.`);
-            return;
-        }
 
         if (role.position >= botTop) {
             blocked.push(`${label}: hierarchy blocks the bot from editing this role.`);
             return;
         }
 
-        const lack = perms.filter(
-            p => PermissionFlagsBits[p] && !role.permissions.has(PermissionFlagsBits[p])
-        );
+        const currentPerms = role.permissions.toArray();
+        const toAdd = [];
+        const toRemove = [];
 
-        if (lack.length > 0) {
-            changes.push({ kind: 'role', id: role.id, label, perms: lack });
+        // Permissions a ajouter
+        for (const perm of expectedPerms) {
+            if (PermissionFlagsBits[perm] && !role.permissions.has(PermissionFlagsBits[perm])) {
+                toAdd.push(perm);
+            }
+        }
+
+        // Permissions dangereuses a retirer (sauf pour les roles staff)
+        const isStaffRole = STAFF_ROLES.includes(role.name);
+        if (!isStaffRole) {
+            for (const perm of DANGEROUS_PERMISSIONS) {
+                if (PermissionFlagsBits[perm] && role.permissions.has(PermissionFlagsBits[perm])) {
+                    toRemove.push(perm);
+                }
+            }
+        }
+
+        if (toAdd.length > 0 || toRemove.length > 0) {
+            changes.push({ kind: 'role', id: role.id, label, toAdd, toRemove });
         }
     };
 
-    for (const [name, perms] of Object.entries(ROLE_GRANTS)) {
+    // Planifier les modifications pour chaque role
+    for (const [name, perms] of Object.entries(ROLE_PERMISSIONS)) {
         const role = roleByName(name);
         if (!role) missingRoles.add(name);
         else planRole(role, perms, `Role ${name}`);
@@ -117,13 +134,13 @@ function buildPlan(guild) {
     for (const name of STAFF_ROLES) {
         const role = roleByName(name);
         if (!role) missingRoles.add(name);
-        else planRole(role, STAFF_GRANTS, `Role ${name}`);
+        else planRole(role, STAFF_PERMISSIONS, `Role ${name}`);
     }
 
-    // --- Overrides par salon ---
-    for (const entry of CHANNEL_PLAN) {
+    // Overrides par salon
+    for (const [type, config] of Object.entries(CHANNEL_OVERRIDES)) {
         const targets = guild.channels.cache.filter(
-            c => c.type === ChannelType.GuildText && entry.channels.includes(c.name)
+            c => c.type === ChannelType.GuildText && config.channels.includes(c.name)
         );
 
         for (const channel of targets.values()) {
@@ -135,43 +152,47 @@ function buildPlan(guild) {
                 continue;
             }
 
-            for (const roleName of entry.roles) {
+            for (const roleName of config.roles) {
                 const role = roleByName(roleName);
                 if (!role) {
                     missingRoles.add(roleName);
                     continue;
                 }
 
-                if (role.permissions.has(PermissionFlagsBits.Administrator)) continue;
-
                 const overwrite = channel.permissionOverwrites?.cache?.get(role.id);
-                const lack = entry.perms.filter(
-                    p => PermissionFlagsBits[p] && !overwrite?.allow.has(PermissionFlagsBits[p])
-                );
+                const toAllow = [];
+                const toDeny = [];
 
-                if (lack.length > 0) {
+                // Permissions a autoriser
+                for (const perm of config.allow) {
+                    if (PermissionFlagsBits[perm] && !overwrite?.allow.has(PermissionFlagsBits[perm])) {
+                        toAllow.push(perm);
+                    }
+                }
+
+                // Permissions a refuser
+                for (const perm of config.deny) {
+                    if (PermissionFlagsBits[perm] && !overwrite?.deny.has(PermissionFlagsBits[perm])) {
+                        toDeny.push(perm);
+                    }
+                }
+
+                if (toAllow.length > 0 || toDeny.length > 0) {
                     changes.push({
                         kind: 'channel',
                         id: channel.id,
                         roleId: role.id,
                         label: `#${channel.name} -> ${role.name}`,
-                        perms: lack
+                        toAllow,
+                        toDeny
                     });
                 }
             }
         }
     }
 
-    return {
-        changes,
-        blocked,
-        missing: Array.from(missingRoles)
-    };
+    return { changes, blocked, missing: Array.from(missingRoles) };
 }
-
-/* ==========================================================
-   SAUVEGARDE AVANT APPLICATION
-   ========================================================== */
 
 function createBackup(guild) {
     const backup = {
@@ -207,20 +228,12 @@ function createBackup(guild) {
     return { filepath, filename };
 }
 
-/* ==========================================================
-   FORMATAGE
-   ========================================================== */
-
 function formatList(items, limit = 20) {
     if (items.length === 0) return 'None';
     const shown = items.slice(0, limit).map(item => `- ${item}`).join('\n');
     const remaining = items.length - Math.min(items.length, limit);
     return remaining > 0 ? `${shown}\n... and ${remaining} more.` : shown;
 }
-
-/* ==========================================================
-   COMMANDE
-   ========================================================== */
 
 module.exports = {
     name: 'setup',
@@ -249,7 +262,6 @@ module.exports = {
         const args = message.content.trim().split(/\s+/).slice(1).map(a => a.toLowerCase());
         const shouldApply = args.includes('apply');
 
-        // Verification des prealables
         const globalProblems = [];
         if (!me.permissions.has(PermissionFlagsBits.ManageChannels)) {
             globalProblems.push('ManageChannels');
@@ -277,23 +289,38 @@ module.exports = {
 
         const plan = buildPlan(guild);
 
-        // --- APERCU (aucune ecriture) ---
         if (!shouldApply) {
+            const addList = plan.changes
+                .filter(c => (c.toAdd?.length || 0) + (c.toAllow?.length || 0) > 0)
+                .map(c => {
+                    const adds = [...(c.toAdd || []), ...(c.toAllow || [])];
+                    return `${c.label}: +${adds.join(', ')}`;
+                });
+
+            const removeList = plan.changes
+                .filter(c => (c.toRemove?.length || 0) + (c.toDeny?.length || 0) > 0)
+                .map(c => {
+                    const removes = [...(c.toRemove || []), ...(c.toDeny || [])];
+                    return `${c.label}: -${removes.join(', ')}`;
+                });
+
             const embed = new EmbedBuilder()
                 .setColor(COLORS.dark)
                 .setTitle('Permission Setup - Preview Only')
                 .setDescription(
                     '**No permission has been modified.**\n\n' +
                     'This is the plan the bot would apply. Review it, then run `!setup apply` to execute.\n\n' +
-                    '**Scope:** additive grants only. No permission is removed, no deny rule is added, ' +
-                    'no role hierarchy is changed, and @everyone is never touched.'
+                    '**Scope:** The bot will add missing permissions AND remove dangerous permissions from non-staff roles.'
                 )
                 .addFields(
                     {
-                        name: `Planned Changes (${plan.changes.length})`,
-                        value: formatList(
-                            plan.changes.map(c => `${c.label}: +${c.perms.join(', ')}`)
-                        ),
+                        name: `Permissions to Add (${addList.length})`,
+                        value: formatList(addList),
+                        inline: false
+                    },
+                    {
+                        name: `Permissions to Remove (${removeList.length})`,
+                        value: formatList(removeList),
                         inline: false
                     },
                     {
@@ -314,18 +341,13 @@ module.exports = {
             return message.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
 
-        // --- APPLICATION ---
         if (plan.changes.length === 0) {
             return message.reply({
                 embeds: [
                     new EmbedBuilder()
                         .setColor(COLORS.dark)
                         .setTitle('Nothing To Apply')
-                        .setDescription(
-                            'All planned permissions are already present.\n\n' +
-                            'Note: this tool only adds missing permissions. It does not remove ' +
-                            'excessive permissions or create deny rules for private channels.'
-                        )
+                        .setDescription('All permissions are already correctly configured.')
                         .setTimestamp()
                 ],
                 flags: MessageFlags.Ephemeral
@@ -358,28 +380,47 @@ module.exports = {
             try {
                 if (change.kind === 'role') {
                     const role = await guild.roles.fetch(change.id);
-                    const bits = change.perms.map(p => PermissionFlagsBits[p]);
-                    const updated = role.permissions.add(...bits);
+                    let newPerms = role.permissions;
+
+                    for (const perm of change.toAdd) {
+                        newPerms = newPerms.add(PermissionFlagsBits[perm]);
+                    }
+
+                    for (const perm of change.toRemove) {
+                        newPerms = newPerms.remove(PermissionFlagsBits[perm]);
+                    }
 
                     await role.edit({
-                        permissions: new PermissionsBitField(updated).bitfield,
+                        permissions: newPerms.bitfield,
                         reason
                     });
+
+                    const adds = change.toAdd.length > 0 ? `+${change.toAdd.join(', ')}` : '';
+                    const removes = change.toRemove.length > 0 ? `-${change.toRemove.join(', ')}` : '';
+                    applied.push(`${change.label}: ${adds} ${removes}`.trim());
                 } else {
                     const channel = await guild.channels.fetch(change.id);
                     const options = {};
-                    for (const perm of change.perms) options[perm] = true;
+
+                    for (const perm of change.toAllow) {
+                        options[perm] = true;
+                    }
+
+                    for (const perm of change.toDeny) {
+                        options[perm] = false;
+                    }
 
                     await channel.permissionOverwrites.edit(change.roleId, options, { reason });
-                }
 
-                applied.push(`${change.label}: +${change.perms.join(', ')}`);
+                    const allows = change.toAllow.length > 0 ? `+${change.toAllow.join(', ')}` : '';
+                    const denies = change.toDeny.length > 0 ? `-${change.toDeny.join(', ')}` : '';
+                    applied.push(`${change.label}: ${allows} ${denies}`.trim());
+                }
             } catch (error) {
                 failed.push(`${change.label}: ${String(error.message).slice(0, 120)}`);
             }
         }
 
-        // --- RAPPORT ---
         const report = new EmbedBuilder()
             .setColor(failed.length > 0 ? COLORS.red : '#2ecc71')
             .setTitle('Permission Setup - Results')
