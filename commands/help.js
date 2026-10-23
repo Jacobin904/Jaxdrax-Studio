@@ -11,8 +11,7 @@ module.exports = {
             .addFields(
                 { name: '!ping', value: 'Displays detailed performance metrics including message latency, WebSocket latency, uptime, and memory usage.' },
                 { name: '!rules', value: 'Shows the server rules. Staff members see the complete version with detailed sanctions, while regular members see a summary with a link to the full rules.' },
-                { name: '!info', value: 'Provides information about Your Fish Life. Staff members get development details and stats, while members get a general overview.' },
-                { name: '!ticket', value: 'For staff: displays the ticket panel with a button. For members: shows instructions on how to open a support ticket.' },
+                { name: '!info', value: 'Provides information about Your Fish Life. Includes buttons to view the license and open a support ticket.' },
                 { name: '!config', value: 'Staff only. Sends a complete dump of the server configuration (IDs of all channels, roles, categories) to your DMs.' },
                 { name: '!checklist', value: 'Staff only. Runs an automatic verification of all bot permissions, roles, and configurations, then displays results with success and error indicators.' },
                 { name: '!modpanel', value: 'Staff only. Opens a comprehensive moderation panel with member investigation, quick actions (warn, timeout, kick, ban), guides, and statistics.' },
