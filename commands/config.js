@@ -1,336 +1,430 @@
-const { EmbedBuilder, MessageFlags, PermissionFlagsBits, ChannelType } = require('discord.js');
+const {
+    EmbedBuilder,
+    MessageFlags,
+    PermissionFlagsBits,
+    PermissionsBitField,
+    ChannelType
+} = require('discord.js');
+
+const fs = require('fs');
+const path = require('path');
 const { COLORS, LOGO_URL, STAFF_ROLES } = require('../config/constants');
 
+const DATA_DIR = path.join(__dirname, '..', 'data');
+
+/* ==========================================================
+   PLAN DE PERMISSIONS (ADDITIF UNIQUEMENT)
+   ========================================================== */
+
+const ROLE_GRANTS = {
+    Bot: [
+        'ViewChannel', 'SendMessages', 'ReadMessageHistory',
+        'EmbedLinks', 'AttachFiles', 'ManageMessages',
+        'ManageChannels', 'ManageRoles'
+    ],
+    Member: [
+        'ViewChannel', 'SendMessages', 'ReadMessageHistory',
+        'EmbedLinks', 'AttachFiles', 'UseExternalEmojis'
+    ],
+    VIP: [
+        'ViewChannel', 'SendMessages', 'ReadMessageHistory',
+        'EmbedLinks', 'AttachFiles', 'UseExternalEmojis'
+    ],
+    'Beta Tester': [
+        'ViewChannel', 'SendMessages', 'ReadMessageHistory',
+        'EmbedLinks', 'AttachFiles'
+    ]
+};
+
+const STAFF_GRANTS = [
+    'ViewChannel', 'SendMessages', 'ReadMessageHistory',
+    'EmbedLinks', 'AttachFiles', 'ManageMessages'
+];
+
+const CHANNEL_PLAN = [
+    {
+        channels: ['general-chat', 'media', 'fish-talk', 'bot-commands', 'review'],
+        roles: ['Member', 'VIP', 'Beta Tester'],
+        perms: ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'EmbedLinks', 'AttachFiles']
+    },
+    {
+        channels: ['rules', 'welcome', 'update', 'informations'],
+        roles: ['Member', 'VIP', 'Beta Tester'],
+        perms: ['ViewChannel', 'ReadMessageHistory']
+    },
+    {
+        channels: ['staff-chat', 'moderator-only'],
+        roles: STAFF_ROLES,
+        perms: ['ViewChannel', 'SendMessages', 'ReadMessageHistory']
+    },
+    {
+        channels: ['dev-logs', 'ticket-transcripts'],
+        roles: STAFF_ROLES,
+        perms: ['ViewChannel', 'ReadMessageHistory']
+    },
+    {
+        channels: ['dev-logs', 'ticket-transcripts'],
+        roles: ['Bot'],
+        perms: ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'EmbedLinks', 'AttachFiles']
+    }
+];
+
+/* ==========================================================
+   CONSTRUCTION DU PLAN (AUCUNE ECRITURE ICI)
+   ========================================================== */
+
+function buildPlan(guild) {
+    const changes = [];
+    const blocked = [];
+    const missing = [];
+
+    const me = guild.members.me;
+    const botTop = me.roles.highest.position;
+    const missingRoles = new Set();
+
+    const roleByName = name =>
+        guild.roles.cache.find(r => r.name === name && !r.managed) || null;
+
+    // --- Permissions globales des roles ---
+    const planRole = (role, perms, label) => {
+        if (!role) return;
+
+        if (role.permissions.has(PermissionFlagsBits.Administrator)) {
+            blocked.push(`${label}: already has Administrator, left untouched.`);
+            return;
+        }
+
+        if (role.position >= botTop) {
+            blocked.push(`${label}: hierarchy blocks the bot from editing this role.`);
+            return;
+        }
+
+        const lack = perms.filter(
+            p => PermissionFlagsBits[p] && !role.permissions.has(PermissionFlagsBits[p])
+        );
+
+        if (lack.length > 0) {
+            changes.push({ kind: 'role', id: role.id, label, perms: lack });
+        }
+    };
+
+    for (const [name, perms] of Object.entries(ROLE_GRANTS)) {
+        const role = roleByName(name);
+        if (!role) missingRoles.add(name);
+        else planRole(role, perms, `Role ${name}`);
+    }
+
+    for (const name of STAFF_ROLES) {
+        const role = roleByName(name);
+        if (!role) missingRoles.add(name);
+        else planRole(role, STAFF_GRANTS, `Role ${name}`);
+    }
+
+    // --- Overrides par salon ---
+    for (const entry of CHANNEL_PLAN) {
+        const targets = guild.channels.cache.filter(
+            c => c.type === ChannelType.GuildText && entry.channels.includes(c.name)
+        );
+
+        for (const channel of targets.values()) {
+            const canManage = channel.permissionsFor(me.id)
+                ?.has(PermissionFlagsBits.ManageChannels);
+
+            if (!canManage) {
+                blocked.push(`#${channel.name}: bot lacks ManageChannels in this channel.`);
+                continue;
+            }
+
+            for (const roleName of entry.roles) {
+                const role = roleByName(roleName);
+                if (!role) {
+                    missingRoles.add(roleName);
+                    continue;
+                }
+
+                if (role.permissions.has(PermissionFlagsBits.Administrator)) continue;
+
+                const overwrite = channel.permissionOverwrites?.cache?.get(role.id);
+                const lack = entry.perms.filter(
+                    p => PermissionFlagsBits[p] && !overwrite?.allow.has(PermissionFlagsBits[p])
+                );
+
+                if (lack.length > 0) {
+                    changes.push({
+                        kind: 'channel',
+                        id: channel.id,
+                        roleId: role.id,
+                        label: `#${channel.name} -> ${role.name}`,
+                        perms: lack
+                    });
+                }
+            }
+        }
+    }
+
+    return {
+        changes,
+        blocked,
+        missing: Array.from(missingRoles)
+    };
+}
+
+/* ==========================================================
+   SAUVEGARDE AVANT APPLICATION
+   ========================================================== */
+
+function createBackup(guild) {
+    const backup = {
+        guildId: guild.id,
+        guildName: guild.name,
+        createdAt: new Date().toISOString(),
+        roles: Array.from(guild.roles.cache.values()).map(role => ({
+            id: role.id,
+            name: role.name,
+            permissions: role.permissions.toArray()
+        })),
+        channels: Array.from(guild.channels.cache.values()).map(channel => ({
+            id: channel.id,
+            name: channel.name,
+            type: channel.type,
+            overwrites: Array.from(channel.permissionOverwrites?.cache?.values() || []).map(o => ({
+                id: o.id,
+                type: o.type,
+                allow: o.allow.toArray(),
+                deny: o.deny.toArray()
+            }))
+        }))
+    };
+
+    if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+
+    const filename = `permissions-backup-${Date.now()}.json`;
+    const filepath = path.join(DATA_DIR, filename);
+    fs.writeFileSync(filepath, JSON.stringify(backup, null, 2), 'utf8');
+
+    return { filepath, filename };
+}
+
+/* ==========================================================
+   FORMATAGE
+   ========================================================== */
+
+function formatList(items, limit = 20) {
+    if (items.length === 0) return 'None';
+    const shown = items.slice(0, limit).map(item => `- ${item}`).join('\n');
+    const remaining = items.length - Math.min(items.length, limit);
+    return remaining > 0 ? `${shown}\n... and ${remaining} more.` : shown;
+}
+
+/* ==========================================================
+   COMMANDE
+   ========================================================== */
+
 module.exports = {
-    name: 'config',
-    async execute(message, isStaff) {
+    name: 'setup',
+
+    async execute(message) {
+        const isStaff = message.member?.roles.cache.some(
+            role => STAFF_ROLES.includes(role.name)
+        ) || false;
+
         if (!isStaff) {
-            const embed = new EmbedBuilder()
-                .setColor(COLORS.red)
-                .setTitle('Access Denied')
-                .setDescription('This command is restricted to staff members only.')
-                .setThumbnail(LOGO_URL)
-                .setFooter({ text: 'Jaxdrax Studio Security', iconURL: LOGO_URL })
-                .setTimestamp();
-            return message.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+            return message.reply({
+                embeds: [
+                    new EmbedBuilder()
+                        .setColor(COLORS.red)
+                        .setTitle('Access Denied')
+                        .setDescription('This command modifies server permissions and is restricted to staff.')
+                        .setTimestamp()
+                ],
+                flags: MessageFlags.Ephemeral
+            });
         }
 
         const guild = message.guild;
-        const results = {
-            success: [],
-            errors: []
-        };
+        const me = guild.members.me;
 
-        const botMember = guild.members.me;
-        const botPermissions = botMember.permissions;
+        const args = message.content.trim().split(/\s+/).slice(1).map(a => a.toLowerCase());
+        const shouldApply = args.includes('apply');
 
-        console.log('[CONFIG] Bot permissions:', botPermissions.toArray());
-
-        const requiredBotPermissions = [
-            { name: 'Manage Channels', flag: PermissionFlagsBits.ManageChannels },
-            { name: 'Manage Roles', flag: PermissionFlagsBits.ManageRoles },
-            { name: 'Manage Messages', flag: PermissionFlagsBits.ManageMessages },
-            { name: 'Attach Files', flag: PermissionFlagsBits.AttachFiles },
-            { name: 'View Channel', flag: PermissionFlagsBits.ViewChannel },
-            { name: 'Send Messages', flag: PermissionFlagsBits.SendMessages },
-            { name: 'Read Message History', flag: PermissionFlagsBits.ReadMessageHistory },
-            { name: 'Embed Links', flag: PermissionFlagsBits.EmbedLinks },
-            { name: 'Use External Emojis', flag: PermissionFlagsBits.UseExternalEmojis }
-        ];
-
-        for (const perm of requiredBotPermissions) {
-            if (botPermissions.has(perm.flag)) {
-                results.success.push(`Bot has "${perm.name}" permission`);
-            } else {
-                results.errors.push(`Bot is MISSING "${perm.name}" permission`);
-            }
+        // Verification des prealables
+        const globalProblems = [];
+        if (!me.permissions.has(PermissionFlagsBits.ManageChannels)) {
+            globalProblems.push('ManageChannels');
+        }
+        if (!me.permissions.has(PermissionFlagsBits.ManageRoles)) {
+            globalProblems.push('ManageRoles');
         }
 
-        for (const roleName of STAFF_ROLES) {
-            const role = guild.roles.cache.find(r => r.name === roleName);
-            if (role) {
-                results.success.push(`Staff role "${roleName}" exists`);
-            } else {
-                results.errors.push(`Staff role "${roleName}" is MISSING`);
-            }
+        if (globalProblems.length > 0) {
+            return message.reply({
+                embeds: [
+                    new EmbedBuilder()
+                        .setColor(COLORS.red)
+                        .setTitle('Setup Cannot Run')
+                        .setDescription(
+                            `The bot is missing required global permissions: **${globalProblems.join(', ')}**.\n\n` +
+                            'Grant these to the Bot role first, then run !setup again.\n' +
+                            'Nothing has been modified.'
+                        )
+                        .setTimestamp()
+                ],
+                flags: MessageFlags.Ephemeral
+            });
         }
 
-        const envVars = [
-            { name: 'DEV_LOGS_CHANNEL_ID', value: process.env.DEV_LOGS_CHANNEL_ID },
-            { name: 'WELCOME_CHANNEL_ID', value: process.env.WELCOME_CHANNEL_ID },
-            { name: 'MEMBER_ROLE_ID', value: process.env.MEMBER_ROLE_ID },
-            { name: 'TICKET_TRANSCRIPTS_CHANNEL_ID', value: process.env.TICKET_TRANSCRIPTS_CHANNEL_ID },
-            { name: 'DISCORD_TOKEN', value: process.env.DISCORD_TOKEN },
-            { name: 'ROBLOX_API_KEY', value: process.env.ROBLOX_API_KEY }
-        ];
+        const plan = buildPlan(guild);
 
-        for (const env of envVars) {
-            if (env.value) {
-                results.success.push(`Environment variable "${env.name}" is set`);
-            } else {
-                results.errors.push(`Environment variable "${env.name}" is MISSING`);
-            }
-        }
-
-        const logChannels = [
-            { name: 'dev-logs', id: process.env.DEV_LOGS_CHANNEL_ID },
-            { name: 'welcome', id: process.env.WELCOME_CHANNEL_ID },
-            { name: 'ticket-transcripts', id: process.env.TICKET_TRANSCRIPTS_CHANNEL_ID }
-        ];
-
-        for (const channel of logChannels) {
-            if (channel.id) {
-                const ch = guild.channels.cache.get(channel.id);
-                if (ch) {
-                    results.success.push(`Channel "${channel.name}" exists and is accessible`);
-                } else {
-                    results.errors.push(`Channel "${channel.name}" ID is set but channel NOT FOUND`);
-                }
-            } else {
-                results.errors.push(`Channel "${channel.name}" ID is NOT configured`);
-            }
-        }
-
-        if (process.env.MEMBER_ROLE_ID) {
-            const memberRole = guild.roles.cache.get(process.env.MEMBER_ROLE_ID);
-            if (memberRole) {
-                results.success.push(`Member role "${memberRole.name}" exists`);
-            } else {
-                results.errors.push(`Member role ID is set but role NOT FOUND`);
-            }
-        } else {
-            results.errors.push(`Member role ID is NOT configured`);
-        }
-
-        const successText = results.success.length > 0 
-            ? results.success.map(s => `✅ ${s}`).join('\n')
-            : 'No successful checks.';
-
-        const errorsText = results.errors.length > 0
-            ? results.errors.map(e => `❌ ${e}`).join('\n')
-            : 'No errors found. All checks passed!';
-
-        const checksEmbed = new EmbedBuilder()
-            .setColor(results.errors.length > 0 ? COLORS.red : '#2ecc71')
-            .setTitle('Server Configuration - Automatic Checks')
-            .setDescription(`**Total Checks:** ${results.success.length + results.errors.length}\n**Successful:** ${results.success.length}\n**Failed:** ${results.errors.length}\n\n${results.errors.length > 0 ? '**⚠️ ATTENTION:** Some checks failed.' : '**✅ ALL CHECKS PASSED:** Your server is properly configured!'}`)
-            .addFields(
-                {
-                    name: `✅ Successful Checks (${results.success.length})`,
-                    value: successText.substring(0, 1024) || 'None',
-                    inline: false
-                },
-                {
-                    name: `❌ Failed Checks (${results.errors.length})`,
-                    value: errorsText.substring(0, 1024) || 'None',
-                    inline: false
-                }
-            )
-            .setThumbnail(LOGO_URL)
-            .setFooter({ text: 'Jaxdrax Studio Configuration Tool', iconURL: LOGO_URL })
-            .setTimestamp();
-
-        await message.reply({ embeds: [checksEmbed] });
-
-        const processingEmbed = new EmbedBuilder()
-            .setColor(COLORS.dark)
-            .setTitle('Generating Complete Permissions Dump')
-            .setDescription('Generating complete dump of all roles, channels, and permissions...')
-            .setThumbnail(LOGO_URL)
-            .setFooter({ text: 'Jaxdrax Studio Configuration Tool', iconURL: LOGO_URL })
-            .setTimestamp();
-
-        await message.reply({ embeds: [processingEmbed] });
-
-        try {
-            let fullReport = `═══════════════════════════════════════════\n`;
-            fullReport += `SERVER CONFIGURATION DUMP - ${guild.name}\n`;
-            fullReport += `Generated: ${new Date().toLocaleString()}\n`;
-            fullReport += `═══════════════════════════════════════════\n\n`;
-
-            fullReport += `┌─────────────────────────────────────────┐\n`;
-            fullReport += `│ SERVER INFORMATION                    │\n`;
-            fullReport += `└─────────────────────────────────────────┘\n`;
-            fullReport += `Server Name: ${guild.name}\n`;
-            fullReport += `Server ID: ${guild.id}\n`;
-            fullReport += `Owner: ${guild.members.cache.get(guild.ownerId)?.user.tag || 'Unknown'} (${guild.ownerId})\n`;
-            fullReport += `Members: ${guild.memberCount}\n`;
-            fullReport += `Created: ${new Date(guild.createdTimestamp).toLocaleString()}\n`;
-            fullReport += `Boost Level: ${guild.premiumTier}\n`;
-            fullReport += `Boosts: ${guild.premiumSubscriptionCount}\n\n`;
-
-            fullReport += `┌─────────────────────────────────────────┐\n`;
-            fullReport += `│ ROLES AND PERMISSIONS                 │\n`;
-            fullReport += `└─────────────────────────────────────────┘\n\n`;
-
-            const roles = guild.roles.cache.filter(r => r.name !== '@everyone').sort((a, b) => b.position - a.position);
-            console.log(`[CONFIG] Found ${roles.size} roles`);
-            
-            for (const role of roles.values()) {
-                fullReport += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-                fullReport += `ROLE: ${role.name}\n`;
-                fullReport += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-                fullReport += `Role ID: ${role.id}\n`;
-                fullReport += `Color: ${role.hexColor}\n`;
-                fullReport += `Position: ${role.position}\n`;
-                fullReport += `Members: ${role.members.size}\n`;
-                fullReport += `Hoisted: ${role.hoist ? 'Yes' : 'No'}\n`;
-                fullReport += `Mentionable: ${role.mentionable ? 'Yes' : 'No'}\n`;
-                fullReport += `Managed: ${role.managed ? 'Yes' : 'No'}\n\n`;
-                
-                fullReport += `PERMISSIONS:\n`;
-                const permissions = role.permissions.toArray();
-                console.log(`[CONFIG] Role "${role.name}" has ${permissions.length} permissions`);
-                
-                if (permissions.length === 0) {
-                    fullReport += `  • No special permissions\n`;
-                } else {
-                    for (const perm of permissions) {
-                        fullReport += `  ✓ ${perm}\n`;
-                    }
-                }
-                fullReport += `\n`;
-            }
-
-            fullReport += `┌─────────────────────────────────────────┐\n`;
-            fullReport += `│ CHANNELS AND PERMISSION OVERRIDES     │\n`;
-            fullReport += `└─────────────────────────────────────────┘\n\n`;
-
-            const channels = guild.channels.cache.sort((a, b) => a.position - b.position);
-            console.log(`[CONFIG] Found ${channels.size} channels`);
-            
-            for (const channel of channels.values()) {
-                fullReport += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-                fullReport += `CHANNEL: ${channel.name}\n`;
-                fullReport += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-                fullReport += `Channel ID: ${channel.id}\n`;
-                fullReport += `Type: ${ChannelType[channel.type] || 'Unknown'}\n`;
-                
-                if (channel.parent) {
-                    fullReport += `Category: ${channel.parent.name} (${channel.parent.id})\n`;
-                }
-                
-                fullReport += `Position: ${channel.position}\n`;
-                fullReport += `NSFW: ${channel.nsfw ? 'Yes' : 'No'}\n`;
-                
-                if (channel.topic) {
-                    fullReport += `Topic: ${channel.topic}\n`;
-                }
-                
-                fullReport += `\nPERMISSION OVERRIDES:\n`;
-                
-                if (channel.permissionOverwrites && channel.permissionOverwrites.cache) {
-                    const overwrites = channel.permissionOverwrites.cache;
-                    console.log(`[CONFIG] Channel "${channel.name}" has ${overwrites.size} permission overrides`);
-                    
-                    if (overwrites.size === 0) {
-                        fullReport += `  • No permission overrides (inherits from category)\n`;
-                    } else {
-                        for (const overwrite of overwrites.values()) {
-                            const target = overwrite.type === 0 
-                                ? guild.roles.cache.get(overwrite.id)
-                                : guild.members.cache.get(overwrite.id);
-                            
-                            const targetName = target 
-                                ? (overwrite.type === 0 ? `@role ${target.name}` : `@user ${target.user.tag}`)
-                                : `Unknown (${overwrite.id})`;
-                            
-                            fullReport += `\n  ${targetName}:\n`;
-                            
-                            const allowed = overwrite.allow.toArray();
-                            const denied = overwrite.deny.toArray();
-                            
-                            if (allowed.length > 0) {
-                                fullReport += `    ALLOWED:\n`;
-                                for (const perm of allowed) {
-                                    fullReport += `      ✓ ${perm}\n`;
-                                }
-                            }
-                            
-                            if (denied.length > 0) {
-                                fullReport += `    DENIED:\n`;
-                                for (const perm of denied) {
-                                    fullReport += `      ✗ ${perm}\n`;
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    console.log(`[CONFIG] Channel "${channel.name}" has no permissionOverwrites property`);
-                    fullReport += `  • Cannot access permission overrides\n`;
-                }
-                fullReport += `\n`;
-            }
-
-            fullReport += `┌─────────────────────────────────────────┐\n`;
-            fullReport += `│ BOT PERMISSIONS                       │\n`;
-            fullReport += `└─────────────────────────────────────────┘\n\n`;
-            
-            fullReport += `Bot: ${botMember.user.tag}\n`;
-            fullReport += `Bot ID: ${botMember.user.id}\n\n`;
-            
-            fullReport += `GLOBAL PERMISSIONS:\n`;
-            const botPerms = botPermissions.toArray();
-            for (const perm of botPerms) {
-                fullReport += `  ✓ ${perm}\n`;
-            }
-            
-            fullReport += `\n`;
-
-            fullReport += `┌─────────────────────────────────────────┐\n`;
-            fullReport += `│ ENVIRONMENT VARIABLES                 │\n`;
-            fullReport += `└─────────────────────────────────────────┘\n\n`;
-            
-            for (const env of envVars) {
-                fullReport += `${env.name}: ${env.value ? '✓ Set' : '✗ Missing'}\n`;
-            }
-
-            fullReport += `\n═══════════════════════════════════════════\n`;
-            fullReport += `END OF REPORT\n`;
-            fullReport += `═══════════════════════════════════════════\n`;
-
-            const buffer = Buffer.from(fullReport, 'utf-8');
-            
-            const configEmbed = new EmbedBuilder()
+        // --- APERCU (aucune ecriture) ---
+        if (!shouldApply) {
+            const embed = new EmbedBuilder()
                 .setColor(COLORS.dark)
-                .setTitle('Complete Server Configuration Dump')
-                .setDescription(`Full configuration data for **${guild.name}** with ALL permissions.\n\n**Report Contents:**\n• Server information\n• All roles with complete permissions (${roles.size} roles)\n• All channels with permission overrides (${channels.size} channels)\n• Bot permissions\n• Environment variables\n\n**File attached below contains the complete dump.**`)
+                .setTitle('Permission Setup - Preview Only')
+                .setDescription(
+                    '**No permission has been modified.**\n\n' +
+                    'This is the plan the bot would apply. Review it, then run `!setup apply` to execute.\n\n' +
+                    '**Scope:** additive grants only. No permission is removed, no deny rule is added, ' +
+                    'no role hierarchy is changed, and @everyone is never touched.'
+                )
                 .addFields(
-                    { name: 'Total Roles', value: roles.size.toString(), inline: true },
-                    { name: 'Total Channels', value: channels.size.toString(), inline: true },
-                    { name: 'Report Size', value: `${(buffer.length / 1024).toFixed(2)} KB`, inline: true }
+                    {
+                        name: `Planned Changes (${plan.changes.length})`,
+                        value: formatList(
+                            plan.changes.map(c => `${c.label}: +${c.perms.join(', ')}`)
+                        ),
+                        inline: false
+                    },
+                    {
+                        name: `Blocked (${plan.blocked.length})`,
+                        value: formatList(plan.blocked, 10),
+                        inline: false
+                    },
+                    {
+                        name: `Missing Roles (${plan.missing.length})`,
+                        value: plan.missing.length > 0 ? plan.missing.join(', ') : 'None',
+                        inline: false
+                    }
                 )
                 .setThumbnail(LOGO_URL)
-                .setFooter({ text: 'Jaxdrax Studio Configuration Tool', iconURL: LOGO_URL })
+                .setFooter({ text: 'Preview only - run !setup apply to execute', iconURL: LOGO_URL })
                 .setTimestamp();
 
-            await message.author.send({ 
-                embeds: [configEmbed],
-                files: [{ attachment: buffer, name: `server-config-${guild.id}.txt` }]
-            });
-
-            const successEmbed = new EmbedBuilder()
-                .setColor('#2ecc71')
-                .setTitle('Configuration Dump Sent')
-                .setDescription('The complete configuration dump has been sent to your DMs.')
-                .setThumbnail(LOGO_URL)
-                .setFooter({ text: 'Jaxdrax Studio Configuration Tool', iconURL: LOGO_URL })
-                .setTimestamp();
-
-            await message.reply({ embeds: [successEmbed] });
-
-        } catch (error) {
-            console.error('[CONFIG] Error:', error);
-            
-            const errorEmbed = new EmbedBuilder()
-                .setColor(COLORS.red)
-                .setTitle('Error Generating Dump')
-                .setDescription(`An error occurred:\n\n\`\`\`${error.message}\`\`\``)
-                .setThumbnail(LOGO_URL)
-                .setFooter({ text: 'Jaxdrax Studio Configuration Tool', iconURL: LOGO_URL })
-                .setTimestamp();
-
-            await message.reply({ embeds: [errorEmbed] });
+            return message.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
+
+        // --- APPLICATION ---
+        if (plan.changes.length === 0) {
+            return message.reply({
+                embeds: [
+                    new EmbedBuilder()
+                        .setColor(COLORS.dark)
+                        .setTitle('Nothing To Apply')
+                        .setDescription(
+                            'All planned permissions are already present.\n\n' +
+                            'Note: this tool only adds missing permissions. It does not remove ' +
+                            'excessive permissions or create deny rules for private channels.'
+                        )
+                        .setTimestamp()
+                ],
+                flags: MessageFlags.Ephemeral
+            });
+        }
+
+        await message.reply({
+            embeds: [
+                new EmbedBuilder()
+                    .setColor(COLORS.dark)
+                    .setTitle('Applying Permission Plan')
+                    .setDescription(`Backing up current permissions, then applying ${plan.changes.length} changes...`)
+                    .setTimestamp()
+            ],
+            flags: MessageFlags.Ephemeral
+        });
+
+        let backupInfo = null;
+        try {
+            backupInfo = createBackup(guild);
+        } catch (error) {
+            backupInfo = null;
+        }
+
+        const applied = [];
+        const failed = [];
+        const reason = `Permission setup requested by ${message.author.tag} (${message.author.id})`;
+
+        for (const change of plan.changes) {
+            try {
+                if (change.kind === 'role') {
+                    const role = await guild.roles.fetch(change.id);
+                    const bits = change.perms.map(p => PermissionFlagsBits[p]);
+                    const updated = role.permissions.add(...bits);
+
+                    await role.edit({
+                        permissions: new PermissionsBitField(updated).bitfield,
+                        reason
+                    });
+                } else {
+                    const channel = await guild.channels.fetch(change.id);
+                    const options = {};
+                    for (const perm of change.perms) options[perm] = true;
+
+                    await channel.permissionOverwrites.edit(change.roleId, options, { reason });
+                }
+
+                applied.push(`${change.label}: +${change.perms.join(', ')}`);
+            } catch (error) {
+                failed.push(`${change.label}: ${String(error.message).slice(0, 120)}`);
+            }
+        }
+
+        // --- RAPPORT ---
+        const report = new EmbedBuilder()
+            .setColor(failed.length > 0 ? COLORS.red : '#2ecc71')
+            .setTitle('Permission Setup - Results')
+            .setDescription(
+                `**Applied:** ${applied.length}\n` +
+                `**Failed:** ${failed.length}\n` +
+                `**Blocked during preview:** ${plan.blocked.length}\n\n` +
+                (backupInfo
+                    ? `Backup saved on the server: \`${backupInfo.filename}\``
+                    : 'Backup could not be written. Check the storage permission of the host.')
+            )
+            .addFields(
+                { name: `Applied (${applied.length})`, value: formatList(applied), inline: false },
+                { name: `Failed (${failed.length})`, value: formatList(failed, 10), inline: false }
+            )
+            .setThumbnail(LOGO_URL)
+            .setFooter({ text: 'Jaxdrax Studio Permission Setup', iconURL: LOGO_URL })
+            .setTimestamp();
+
+        await message.author.send({ embeds: [report] }).catch(() => null);
+
+        if (backupInfo) {
+            await message.author.send({
+                content: 'Permission backup taken before the changes.',
+                files: [{ attachment: backupInfo.filepath, name: backupInfo.filename }]
+            }).catch(() => null);
+        }
+
+        const logChannel = guild.channels.cache.get(process.env.DEV_LOGS_CHANNEL_ID);
+        if (logChannel) {
+            await logChannel.send({ embeds: [report] }).catch(() => null);
+        }
+
+        await message.reply({
+            embeds: [
+                new EmbedBuilder()
+                    .setColor(failed.length > 0 ? COLORS.red : '#2ecc71')
+                    .setTitle('Setup Finished')
+                    .setDescription(
+                        `${applied.length} permission changes applied, ${failed.length} failed.\n` +
+                        'The full report and the backup file were sent to your DMs.'
+                    )
+                    .setTimestamp()
+            ],
+            flags: MessageFlags.Ephemeral
+        });
     }
 };
