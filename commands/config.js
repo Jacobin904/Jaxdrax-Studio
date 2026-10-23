@@ -24,6 +24,8 @@ module.exports = {
         const botMember = guild.members.me;
         const botPermissions = botMember.permissions;
 
+        console.log('[CONFIG] Bot permissions:', botPermissions.toArray());
+
         const requiredBotPermissions = [
             { name: 'Manage Channels', flag: PermissionFlagsBits.ManageChannels },
             { name: 'Manage Roles', flag: PermissionFlagsBits.ManageRoles },
@@ -111,7 +113,7 @@ module.exports = {
         const checksEmbed = new EmbedBuilder()
             .setColor(results.errors.length > 0 ? COLORS.red : '#2ecc71')
             .setTitle('Server Configuration - Automatic Checks')
-            .setDescription(`**Total Checks:** ${results.success.length + results.errors.length}\n**Successful:** ${results.success.length}\n**Failed:** ${results.errors.length}\n\n${results.errors.length > 0 ? '**⚠️ ATTENTION:** Some checks failed. Please fix the issues below to ensure proper bot functionality.' : '**✅ ALL CHECKS PASSED:** Your server is properly configured!'}`)
+            .setDescription(`**Total Checks:** ${results.success.length + results.errors.length}\n**Successful:** ${results.success.length}\n**Failed:** ${results.errors.length}\n\n${results.errors.length > 0 ? '**⚠️ ATTENTION:** Some checks failed.' : '**✅ ALL CHECKS PASSED:** Your server is properly configured!'}`)
             .addFields(
                 {
                     name: `✅ Successful Checks (${results.success.length})`,
@@ -133,7 +135,7 @@ module.exports = {
         const processingEmbed = new EmbedBuilder()
             .setColor(COLORS.dark)
             .setTitle('Generating Complete Permissions Dump')
-            .setDescription('Generating complete dump of all roles, channels, and permissions. This may take a few seconds...')
+            .setDescription('Generating complete dump of all roles, channels, and permissions...')
             .setThumbnail(LOGO_URL)
             .setFooter({ text: 'Jaxdrax Studio Configuration Tool', iconURL: LOGO_URL })
             .setTimestamp();
@@ -162,6 +164,7 @@ module.exports = {
             fullReport += `└─────────────────────────────────────────┘\n\n`;
 
             const roles = guild.roles.cache.filter(r => r.name !== '@everyone').sort((a, b) => b.position - a.position);
+            console.log(`[CONFIG] Found ${roles.size} roles`);
             
             for (const role of roles.values()) {
                 fullReport += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
@@ -177,6 +180,7 @@ module.exports = {
                 
                 fullReport += `PERMISSIONS:\n`;
                 const permissions = role.permissions.toArray();
+                console.log(`[CONFIG] Role "${role.name}" has ${permissions.length} permissions`);
                 
                 if (permissions.length === 0) {
                     fullReport += `  • No special permissions\n`;
@@ -193,6 +197,7 @@ module.exports = {
             fullReport += `└─────────────────────────────────────────┘\n\n`;
 
             const channels = guild.channels.cache.sort((a, b) => a.position - b.position);
+            console.log(`[CONFIG] Found ${channels.size} channels`);
             
             for (const channel of channels.values()) {
                 fullReport += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
@@ -214,38 +219,45 @@ module.exports = {
                 
                 fullReport += `\nPERMISSION OVERRIDES:\n`;
                 
-                const overwrites = channel.permissionOverwrites?.cache;
-                if (!overwrites || overwrites.size === 0) {
-                    fullReport += `  • No permission overrides (inherits from category)\n`;
-                } else {
-                    for (const overwrite of overwrites.values()) {
-                        const target = overwrite.type === 0 
-                            ? guild.roles.cache.get(overwrite.id)
-                            : guild.members.cache.get(overwrite.id);
-                        
-                        const targetName = target 
-                            ? (overwrite.type === 0 ? `@role ${target.name}` : `@user ${target.user.tag}`)
-                            : `Unknown (${overwrite.id})`;
-                        
-                        fullReport += `\n  ${targetName}:\n`;
-                        
-                        const allowed = overwrite.allow.toArray();
-                        const denied = overwrite.deny.toArray();
-                        
-                        if (allowed.length > 0) {
-                            fullReport += `    ALLOWED:\n`;
-                            for (const perm of allowed) {
-                                fullReport += `      ✓ ${perm}\n`;
+                if (channel.permissionOverwrites && channel.permissionOverwrites.cache) {
+                    const overwrites = channel.permissionOverwrites.cache;
+                    console.log(`[CONFIG] Channel "${channel.name}" has ${overwrites.size} permission overrides`);
+                    
+                    if (overwrites.size === 0) {
+                        fullReport += `  • No permission overrides (inherits from category)\n`;
+                    } else {
+                        for (const overwrite of overwrites.values()) {
+                            const target = overwrite.type === 0 
+                                ? guild.roles.cache.get(overwrite.id)
+                                : guild.members.cache.get(overwrite.id);
+                            
+                            const targetName = target 
+                                ? (overwrite.type === 0 ? `@role ${target.name}` : `@user ${target.user.tag}`)
+                                : `Unknown (${overwrite.id})`;
+                            
+                            fullReport += `\n  ${targetName}:\n`;
+                            
+                            const allowed = overwrite.allow.toArray();
+                            const denied = overwrite.deny.toArray();
+                            
+                            if (allowed.length > 0) {
+                                fullReport += `    ALLOWED:\n`;
+                                for (const perm of allowed) {
+                                    fullReport += `      ✓ ${perm}\n`;
+                                }
                             }
-                        }
-                        
-                        if (denied.length > 0) {
-                            fullReport += `    DENIED:\n`;
-                            for (const perm of denied) {
-                                fullReport += `      ✗ ${perm}\n`;
+                            
+                            if (denied.length > 0) {
+                                fullReport += `    DENIED:\n`;
+                                for (const perm of denied) {
+                                    fullReport += `      ✗ ${perm}\n`;
+                                }
                             }
                         }
                     }
+                } else {
+                    console.log(`[CONFIG] Channel "${channel.name}" has no permissionOverwrites property`);
+                    fullReport += `  • Cannot access permission overrides\n`;
                 }
                 fullReport += `\n`;
             }
@@ -300,7 +312,7 @@ module.exports = {
             const successEmbed = new EmbedBuilder()
                 .setColor('#2ecc71')
                 .setTitle('Configuration Dump Sent')
-                .setDescription('The complete configuration dump has been sent to your DMs. Please check your private messages.')
+                .setDescription('The complete configuration dump has been sent to your DMs.')
                 .setThumbnail(LOGO_URL)
                 .setFooter({ text: 'Jaxdrax Studio Configuration Tool', iconURL: LOGO_URL })
                 .setTimestamp();
@@ -308,10 +320,12 @@ module.exports = {
             await message.reply({ embeds: [successEmbed] });
 
         } catch (error) {
+            console.error('[CONFIG] Error:', error);
+            
             const errorEmbed = new EmbedBuilder()
                 .setColor(COLORS.red)
                 .setTitle('Error Generating Dump')
-                .setDescription(`An error occurred while generating the configuration dump:\n\n\`\`\`${error.message}\`\`\`\n\nPlease check the bot permissions and try again.`)
+                .setDescription(`An error occurred:\n\n\`\`\`${error.message}\`\`\``)
                 .setThumbnail(LOGO_URL)
                 .setFooter({ text: 'Jaxdrax Studio Configuration Tool', iconURL: LOGO_URL })
                 .setTimestamp();
