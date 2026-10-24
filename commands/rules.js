@@ -1,4 +1,4 @@
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, MessageFlags } = require('discord.js');
 const { COLORS, LOGO_URL } = require('../config/constants');
 
 module.exports = {
@@ -7,7 +7,7 @@ module.exports = {
         if (isStaff) {
             const embed = new EmbedBuilder()
                 .setColor(COLORS.darkRed)
-                .setTitle('Complete Server Rules - Staff Version')
+                .setTitle('<:filecirclechecksolid:1563658714320207932> Complete Server Rules - Staff Version')
                 .setDescription('Official regulations for the Your Fish Life community. All members must comply. Infractions will result in warnings, mutes, or bans depending on severity.')
                 .addFields(
                     { name: '1. Respect Everyone', value: 'Treat all members and staff with respect. Harassment, hate speech, or discrimination of any kind will result in an immediate ban.' },
@@ -25,7 +25,7 @@ module.exports = {
         } else {
             const embed = new EmbedBuilder()
                 .setColor(COLORS.red)
-                .setTitle('Server Rules Summary')
+                .setTitle('<:filecirclechecksolid:1563658714320207932> Server Rules Summary')
                 .setDescription('Welcome to Your Fish Life! To ensure a safe and enjoyable experience for everyone, please adhere to the following core rules. For the complete and detailed regulations, please visit the rules channel.')
                 .addFields(
                     { name: '1. Respect Everyone', value: 'Treat all members and staff with respect. Harassment or discrimination is strictly forbidden.' },
