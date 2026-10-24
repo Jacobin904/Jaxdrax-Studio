@@ -1,7 +1,6 @@
 const { EmbedBuilder, ActivityType } = require('discord.js');
 const { COLORS, LOGO_URL } = require('../config/constants');
 const { sendDevLog } = require('../utils/logger');
-const { autoConfigure } = require('../utils/autoConfig');
 
 let presenceIndex = 0;
 
@@ -33,7 +32,7 @@ function updateBotPresence(client, robloxPresence) {
 }
 
 module.exports = {
-    name: 'ready',
+    name: 'clientReady',
     once: true,
     async execute(client, robloxPresence) {
         console.log(`Bot online: ${client.user.tag}`);
@@ -43,24 +42,11 @@ module.exports = {
         const embed = new EmbedBuilder()
             .setColor(COLORS.dark)
             .setTitle('Bot Online - System Initialized')
-            .setDescription(`The Jaxdrax Studio Bot has successfully connected to Discord and is now fully operational.\n\n**Connection Details:**\n• Tag: ${client.user.tag}\n• ID: ${client.user.id}\n• Servers: ${client.guilds.cache.size}\n• Users: ${client.users.cache.size}\n\nAll monitoring systems are active and ready to track server events.\n\n**Automatic Configuration:** Starting now...`)
+            .setDescription(`The Jaxdrax Studio Bot has successfully connected to Discord and is now fully operational.\n\n**Connection Details:**\n• Tag: ${client.user.tag}\n• ID: ${client.user.id}\n• Servers: ${client.guilds.cache.size}\n• Users: ${client.users.cache.size}\n\nAll monitoring systems are active and ready to track server events.`)
             .setThumbnail(LOGO_URL)
             .setFooter({ text: 'Jaxdrax Studio System Monitor', iconURL: LOGO_URL })
             .setTimestamp();
 
         await sendDevLog(client, embed);
-
-        // Executer la configuration automatique
-        try {
-            await autoConfigure(client);
-        } catch (error) {
-            console.error('[AutoConfig] Error during automatic configuration:', error);
-            await sendDevLog(client, new EmbedBuilder()
-                .setColor(COLORS.red)
-                .setTitle('Auto Configuration Error')
-                .setDescription(`An error occurred during automatic configuration:\n\n\`\`\`${error.message}\`\`\``)
-                .setTimestamp()
-            );
-        }
     }
 };
