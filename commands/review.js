@@ -128,7 +128,7 @@ function buildReviewModal(kind) {
                     .setCustomId('staff')
                     .setLabel('Staff member (username, mention or ID)')
                     .setStyle(TextInputStyle.Short)
-                    .setPlaceholder('Ex: ModeratorName ou @ModeratorName')
+                    .setPlaceholder('Ex: ModeratorName or @ModeratorName')
                     .setMaxLength(100)
                     .setRequired(true)
             )
@@ -246,11 +246,6 @@ module.exports = {
                 {
                     name: 'Option 2 - Review a Staff Member',
                     value: 'Rate a specific staff member on their help, attitude and efficiency. You must provide their username, mention or ID, plus a rating and a comment.',
-                    inline: false
-                },
-                {
-                    name: 'Where Does It Go?',
-                    value: 'Every review is automatically posted in the review channel with your name attached, so the whole community and the staff team can see it.',
                     inline: false
                 },
                 {
