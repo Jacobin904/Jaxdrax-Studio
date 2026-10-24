@@ -1,34 +1,15 @@
-const { EmbedBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
+const { EmbedBuilder, PermissionFlagsBits, PermissionsBitField, ChannelType } = require('discord.js');
 const { COLORS, LOGO_URL, STAFF_ROLES } = require('../config/constants');
 
-// Permissions EXACTES pour chaque role
+// Permissions EXACTES pour chaque rôle
 const ROLE_PERMISSIONS = {
-    Bot: [
-        'ViewChannel', 'SendMessages', 'ReadMessageHistory',
-        'EmbedLinks', 'AttachFiles', 'ManageMessages',
-        'ManageChannels', 'ManageRoles'
-    ],
-    Member: [
-        'ViewChannel', 'SendMessages', 'ReadMessageHistory',
-        'EmbedLinks', 'AttachFiles', 'UseExternalEmojis'
-    ],
-    VIP: [
-        'ViewChannel', 'SendMessages', 'ReadMessageHistory',
-        'EmbedLinks', 'AttachFiles', 'UseExternalEmojis'
-    ],
-    'Beta Tester': [
-        'ViewChannel', 'SendMessages', 'ReadMessageHistory',
-        'EmbedLinks', 'AttachFiles'
-    ]
+    Bot: ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'EmbedLinks', 'AttachFiles', 'ManageMessages', 'ManageChannels', 'ManageRoles'],
+    Member: ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'EmbedLinks', 'AttachFiles', 'UseExternalEmojis'],
+    VIP: ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'EmbedLinks', 'AttachFiles', 'UseExternalEmojis'],
+    'Beta Tester': ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'EmbedLinks', 'AttachFiles']
 };
 
-// Permissions pour les roles staff
-const STAFF_PERMISSIONS = [
-    'ViewChannel', 'SendMessages', 'ReadMessageHistory',
-    'EmbedLinks', 'AttachFiles', 'ManageMessages',
-    'KickMembers', 'BanMembers', 'TimeoutMembers',
-    'ManageNicknames', 'ModerateMembers'
-];
+const STAFF_PERMISSIONS = ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'EmbedLinks', 'AttachFiles', 'ManageMessages', 'KickMembers', 'BanMembers', 'TimeoutMembers', 'ManageNicknames', 'ModerateMembers'];
 
 // Overrides EXACTS pour chaque type de salon
 const CHANNEL_OVERRIDES = {
@@ -58,17 +39,15 @@ const CHANNEL_OVERRIDES = {
     }
 };
 
-// Permissions dangereuses a RETIRER des roles non-staff
-const DANGEROUS_PERMISSIONS = [
-    'Administrator', 'ManageGuild', 'ManageRoles', 'ManageChannels',
-    'ManageMessages', 'KickMembers', 'BanMembers', 'ManageNicknames',
-    'ManageWebhooks', 'ManageEmojisAndStickers', 'ManageEvents',
-    'ManageThreads', 'CreatePublicThreads', 'CreatePrivateThreads'
-];
+// Permissions dangereuses à retirer des rôles non-staff
+const DANGEROUS_PERMISSIONS = ['Administrator', 'ManageGuild', 'ManageRoles', 'ManageChannels', 'ManageMessages', 'KickMembers', 'BanMembers', 'ManageNicknames', 'ManageWebhooks', 'ManageEmojisAndStickers', 'ManageEvents', 'ManageThreads'];
 
 async function autoConfigure(client) {
     const guild = client.guilds.cache.first();
-    if (!guild) return;
+    if (!guild) {
+        console.log('[AutoConfig] No guild found');
+        return;
+    }
 
     const me = guild.members.me;
     const botTop = me.roles.highest.position;
@@ -77,17 +56,21 @@ async function autoConfigure(client) {
 
     console.log('[AutoConfig] Starting automatic configuration...');
 
-    // Configuration des permissions globales des roles
-    const roleByName = name =>
-        guild.roles.cache.find(r => r.name === name && !r.managed) || null;
+    // Vérification des permissions du bot
+    if (!me.permissions.has(PermissionFlagsBits.ManageChannels) || !me.permissions.has(PermissionFlagsBits.ManageRoles)) {
+        console.log('[AutoConfig] Bot lacks required permissions');
+        return;
+    }
 
-    // Configurer les roles standards
+    const roleByName = name => guild.roles.cache.find(r => r.name === name && !r.managed) || null;
+
+    // Configuration des permissions globales des rôles
     for (const [name, perms] of Object.entries(ROLE_PERMISSIONS)) {
         const role = roleByName(name);
         if (!role) continue;
 
         if (role.position >= botTop) {
-            errors.push(`Role ${name}: hierarchy blocks bot from editing`);
+            errors.push(`Role ${name}: hierarchy blocks bot`);
             continue;
         }
 
@@ -127,13 +110,13 @@ async function autoConfigure(client) {
         }
     }
 
-    // Configurer les roles staff
+    // Configuration des rôles staff
     for (const name of STAFF_ROLES) {
         const role = roleByName(name);
         if (!role) continue;
 
         if (role.position >= botTop) {
-            errors.push(`Role ${name}: hierarchy blocks bot from editing`);
+            errors.push(`Role ${name}: hierarchy blocks bot`);
             continue;
         }
 
@@ -204,16 +187,19 @@ async function autoConfigure(client) {
         }
     }
 
-    // Logger les resultats
+    // Logger les résultats
     const devLogsChannel = guild.channels.cache.get(process.env.DEV_LOGS_CHANNEL_ID);
     if (devLogsChannel) {
+        const changesText = changes.length > 0 ? changes.slice(0, 10).join('\n') : 'None';
+        const errorsText = errors.length > 0 ? errors.slice(0, 10).join('\n') : 'None';
+
         const report = new EmbedBuilder()
             .setColor(errors.length > 0 ? COLORS.red : '#2ecc71')
             .setTitle('Automatic Configuration Complete')
             .setDescription(`The bot has automatically configured all permissions on startup.\n\n**Changes Applied:** ${changes.length}\n**Errors:** ${errors.length}`)
             .addFields(
-                { name: `Changes (${changes.length})`, value: changes.length > 0 ? changes.slice(0, 20).join('\n') : 'None', inline: false },
-                { name: `Errors (${errors.length})`, value: errors.length > 0 ? errors.slice(0, 20).join('\n') : 'None', inline: false }
+                { name: `Changes (${changes.length})`, value: changesText, inline: false },
+                { name: `Errors (${errors.length})`, value: errorsText, inline: false }
             )
             .setThumbnail(LOGO_URL)
             .setFooter({ text: 'Jaxdrax Studio Auto Configuration', iconURL: LOGO_URL })
