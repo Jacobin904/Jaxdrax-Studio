@@ -1,4 +1,4 @@
-const {
+.const {
     EmbedBuilder,
     ActionRowBuilder,
     ButtonBuilder,
@@ -65,6 +65,7 @@ async function handleInteraction(interaction) {
                             inline: false
                         }
                     )
+                    .setImage(BANNER_URL)
                     .setFooter({ text: 'Jaxdrax Studio Moderation' })
                     .setTimestamp();
 
@@ -108,6 +109,7 @@ async function handleInteraction(interaction) {
                             inline: false
                         }
                     )
+                    .setImage(BANNER_URL)
                     .setFooter({ text: 'Jaxdrax Studio Statistics' })
                     .setTimestamp();
 
@@ -131,6 +133,7 @@ async function handleInteraction(interaction) {
                             inline: false
                         }
                     )
+                    .setImage(BANNER_URL)
                     .setFooter({ text: 'Jaxdrax Studio Quick Actions' })
                     .setTimestamp();
 
@@ -200,6 +203,7 @@ async function handleInteraction(interaction) {
                             inline: false
                         }
                     )
+                    .setImage(BANNER_URL)
                     .setFooter({ text: 'Jaxdrax Studio Logs' })
                     .setTimestamp();
 
@@ -257,6 +261,7 @@ async function handleInteraction(interaction) {
                         { name: 'Is Staff', value: isStaff ? 'Yes' : 'No', inline: true },
                         { name: 'Roles (' + member.roles.cache.size + ')', value: roles.substring(0, 1000) || 'None', inline: false }
                     )
+                    .setImage(BANNER_URL)
                     .setFooter({ text: 'Jaxdrax Studio Investigation' })
                     .setTimestamp();
 
@@ -328,6 +333,7 @@ async function handleInteraction(interaction) {
                                 { name: 'Target', value: member.user.tag + '\n' + member.id, inline: true },
                                 { name: 'Action', value: actionType.charAt(0).toUpperCase() + actionType.slice(1), inline: true }
                             )
+                            .setImage(BANNER_URL)
                             .setTimestamp();
                         await devLogs.send({ embeds: [logEmbed] }).catch(() => {});
                     }
