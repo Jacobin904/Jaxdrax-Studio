@@ -21,16 +21,22 @@ client.commands = new Collection();
 // Charger les commandes
 const commandsPath = path.join(__dirname, 'commands');
 const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+const commands = [];
 
 for (const file of commandFiles) {
     try {
         const command = require(path.join(commandsPath, file));
-        if (command.name && typeof command.execute === 'function') {
+        if (command.data && typeof command.execute === 'function') {
+            client.commands.set(command.data.name, command);
+            commands.push(command.data.toJSON());
+            console.log(`[Command] Loaded: ${command.data.name}`);
+        } else if (command.name && typeof command.execute === 'function') {
             client.commands.set(command.name, command);
             console.log(`[Command] Loaded: ${command.name}`);
         }
     } catch (error) {
         console.error(`[Command] Failed to load ${file}:`, error.message);
+        console.log(`[Command] Skipping ${file} - will try again later`);
     }
 }
 
