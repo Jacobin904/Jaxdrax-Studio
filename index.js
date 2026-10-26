@@ -222,7 +222,7 @@ function loadEvents() {
     if (!fs.existsSync(folder)) return;
 
     for (const file of fs.readdirSync(folder).filter(f => f.endsWith('.js'))) {
-        if (file === 'interactionCreate.js') continue;
+        if (file === 'interactionCreate.js' || file === 'modpanelInteractions.js' || file === 'modpanelModalHandler.js') continue;
 
         try {
             const event = require(path.join(folder, file));
