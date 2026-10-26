@@ -12,7 +12,7 @@ module.exports = {
         const isInteraction = target.isChatInputCommand !== undefined;
         const member = isInteraction ? target.member : target.member;
         const guild = isInteraction ? target.guild : target.guild;
-        const reply = isInteraction ? target.reply.bind(target) : target.reply.bind(target);
+        const channel = isInteraction ? target.channel : target.channel;
 
         const isStaffMember = member.roles.cache.some(role => STAFF_ROLES.includes(role.name));
 
@@ -67,19 +67,18 @@ module.exports = {
                 .setFooter({ text: 'Jaxdrax Studio Management', iconURL: LOGO_URL })
                 .setTimestamp();
             
-            await reply({ embeds: [embed] });
+            // Envoyer un message séparé (pas de reply)
+            const sentMessage = await channel.send({ embeds: [embed] });
+            
+            // Stocker l'ID du message pour pouvoir le modifier plus tard
+            if (!client.commandMessages) client.commandMessages = new Map();
+            client.commandMessages.set(`rules_${member.id}`, sentMessage.id);
         } else {
             const rulesChannel = guild.channels.cache.find(c => c.name === 'rules');
             if (rulesChannel) {
-                await reply({ 
-                    content: `Please check the complete server rules in ${rulesChannel}`, 
-                    flags: MessageFlags.Ephemeral 
-                });
+                await channel.send(`Please check the complete server rules in ${rulesChannel}`);
             } else {
-                await reply({ 
-                    content: 'The rules channel could not be found. Please contact a staff member for assistance.', 
-                    flags: MessageFlags.Ephemeral 
-                });
+                await channel.send('The rules channel could not be found. Please contact a staff member for assistance.');
             }
         }
     }
