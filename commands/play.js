@@ -1,81 +1,84 @@
-const { EmbedBuilder, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
 const { COLORS, LOGO_URL } = require('../config/constants');
-const { addToQueue, getQueue, skipTrack } = require('../utils/voiceManager');
+const { addToQueue, getQueue, playNext } = require('../utils/voiceManager');
 
 module.exports = {
-    name: 'play',
-    async execute(message, isStaff) {
-        const args = message.content.trim().split(/ +/).slice(1);
+    data: new SlashCommandBuilder()
+        .setName('play')
+        .setDescription('Joue de la musique Spotify dans le salon vocal')
+        .addStringOption(option =>
+            option.setName('url')
+                .setDescription('URL Spotify (piste ou playlist)')
+                .setRequired(true)),
+    async execute(interaction) {
+        const url = interaction.options.getString('url');
         
-        if (args.length === 0) {
+        if (!url.includes('spotify.com')) {
+            return interaction.reply({
+                embeds: [new EmbedBuilder()
+                    .setColor(COLORS.red)
+                    .setTitle('URL invalide')
+                    .setDescription('Veuillez fournir une URL Spotify valide (piste ou playlist).')
+                    .setThumbnail(LOGO_URL)
+                    .setTimestamp()],
+                flags: MessageFlags.Ephemeral
+            });
+        }
+
+        await interaction.reply({
+            embeds: [new EmbedBuilder()
+                .setColor(COLORS.dark)
+                .setTitle('Ajout à la file d\'attente')
+                .setDescription('Recherche de la musique en cours...')
+                .setThumbnail(LOGO_URL)
+                .setTimestamp()],
+            flags: MessageFlags.Ephemeral
+        });
+
+        try {
+            const count = await addToQueue(url);
+            
+            if (count === 0) {
+                return interaction.editReply({
+                    embeds: [new EmbedBuilder()
+                        .setColor(COLORS.red)
+                        .setTitle('Erreur')
+                        .setDescription('Impossible de trouver la piste ou la playlist. Vérifie l\'URL.')
+                        .setThumbnail(LOGO_URL)
+                        .setTimestamp()]
+                });
+            }
+
             const queueInfo = getQueue();
             
             const embed = new EmbedBuilder()
                 .setColor(COLORS.dark)
-                .setTitle('Music Player')
-                .setDescription('Use `!play <spotify_url>` to add music to the queue.\n\n**Current Track:**\n' + 
-                    (queueInfo.current ? `${queueInfo.current.title} by ${queueInfo.current.artist}` : 'Nothing playing'))
+                .setTitle('Ajouté à la file d\'attente')
+                .setDescription(`${count} piste${count > 1 ? 's' : ''} ajoutée${count > 1 ? 's' : ''} à la file d'attente.`)
                 .addFields({
-                    name: `Queue (${queueInfo.queue.length} tracks)`,
-                    value: queueInfo.queue.slice(0, 10).map((t, i) => `${i + 1}. ${t.title} - ${t.artist}`).join('\n') || 'Empty',
+                    name: `File d'attente (${queueInfo.queue.length} pistes)`,
+                    value: queueInfo.queue.slice(0, 10).map((t, i) => `${i + 1}. ${t.title} - ${t.artist}`).join('\n') || 'Vide',
                     inline: false
                 })
                 .setThumbnail(LOGO_URL)
-                .setFooter({ text: 'Jaxdrax Studio Music', iconURL: LOGO_URL })
+                .setFooter({ text: 'Musique Jaxdrax Studio', iconURL: LOGO_URL })
                 .setTimestamp();
 
-            return message.reply({ embeds: [embed] });
-        }
+            await interaction.editReply({ embeds: [embed] });
 
-        const url = args[0];
-        
-        if (!url.includes('spotify.com')) {
-            return message.reply({
+            if (!queueInfo.current && queueInfo.queue.length > 0) {
+                playNext();
+            }
+        } catch (error) {
+            console.error('[Play] Erreur:', error.message);
+            await interaction.editReply({
                 embeds: [new EmbedBuilder()
                     .setColor(COLORS.red)
-                    .setTitle('Invalid URL')
-                    .setDescription('Please provide a valid Spotify track or playlist URL.')
+                    .setTitle('Erreur')
+                    .setDescription(`Une erreur est survenue: ${error.message}`)
                     .setThumbnail(LOGO_URL)
-                    .setTimestamp()],
-                flags: MessageFlags.Ephemeral
+                    .setTimestamp()]
             });
-        }
-
-        const count = await addToQueue(url);
-        
-        if (count === 0) {
-            return message.reply({
-                embeds: [new EmbedBuilder()
-                    .setColor(COLORS.red)
-                    .setTitle('Error')
-                    .setDescription('Could not find the track or playlist. Please check the URL.')
-                    .setThumbnail(LOGO_URL)
-                    .setTimestamp()],
-                flags: MessageFlags.Ephemeral
-            });
-        }
-
-        const queueInfo = getQueue();
-        
-        const embed = new EmbedBuilder()
-            .setColor(COLORS.dark)
-            .setTitle('Added to Queue')
-            .setDescription(`Added ${count} track${count > 1 ? 's' : ''} to the queue.`)
-            .addFields({
-                name: `Queue (${queueInfo.queue.length} tracks)`,
-                value: queueInfo.queue.slice(0, 10).map((t, i) => `${i + 1}. ${t.title} - ${t.artist}`).join('\n') || 'Empty',
-                inline: false
-            })
-            .setThumbnail(LOGO_URL)
-            .setFooter({ text: 'Jaxdrax Studio Music', iconURL: LOGO_URL })
-            .setTimestamp();
-
-        await message.reply({ embeds: [embed] });
-
-        // Si rien ne joue, commencer la lecture
-        if (!queueInfo.current && queueInfo.queue.length > 0) {
-            const { playNext } = require('../utils/voiceManager');
-            playNext();
         }
     }
 };
