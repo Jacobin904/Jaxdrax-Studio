@@ -1,8 +1,4 @@
-const {
-    SlashCommandBuilder,
-    EmbedBuilder
-} = require('discord.js');
-
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { COLORS, LOGO_URL } = require('../config/constants');
 
 module.exports = {
@@ -29,39 +25,37 @@ module.exports = {
         const seconds = uptime % 60;
 
         const uptimeString = [];
-        if (days > 0) uptimeString.push(`${days}d`);
-        if (hours > 0) uptimeString.push(`${hours}h`);
-        if (minutes > 0) uptimeString.push(`${minutes}m`);
-        uptimeString.push(`${seconds}s`);
+        if (days > 0) uptimeString.push(days + 'd');
+        if (hours > 0) uptimeString.push(hours + 'h');
+        if (minutes > 0) uptimeString.push(minutes + 'm');
+        uptimeString.push(seconds + 's');
 
         const memoryUsage = process.memoryUsage();
         const ramUsed = Math.round(memoryUsage.heapUsed / 1024 / 1024 * 100) / 100;
         const ramTotal = Math.round(memoryUsage.heapTotal / 1024 / 1024 * 100) / 100;
         const ramPercent = Math.round((ramUsed / ramTotal) * 100);
 
-        const statusEmoji = messageLatency < 200 && websocketLatency < 200 ? 'Excellent' :
-                           messageLatency < 500 && websocketLatency < 500 ? 'Good' : 'Poor';
+        const status = messageLatency < 200 && websocketLatency < 200 ? 'Excellent' :
+                       messageLatency < 500 && websocketLatency < 500 ? 'Good' : 'Poor';
 
         const embed = new EmbedBuilder()
             .setColor(COLORS.dark)
             .setTitle('System Performance Metrics')
-            .setDescription(
-                'Detailed performance metrics for the Jaxdrax Studio Bot. All measurements are taken in real-time and reflect the current state of the system.'
-            )
+            .setDescription('Detailed performance metrics for the Jaxdrax Studio Bot. All measurements are taken in real-time and reflect the current state of the system.')
             .addFields(
                 {
                     name: 'Message Latency',
-                    value: `${messageLatency}ms\nThe time it takes for the bot to receive and respond to a command. Lower is better.`,
+                    value: messageLatency + 'ms\nThe time it takes for the bot to receive and respond to a command. Lower is better.',
                     inline: true
                 },
                 {
                     name: 'WebSocket Latency',
-                    value: `${websocketLatency}ms\nThe heartbeat latency between the bot and Discord servers. Indicates connection quality.`,
+                    value: websocketLatency + 'ms\nThe heartbeat latency between the bot and Discord servers. Indicates connection quality.',
                     inline: true
                 },
                 {
                     name: 'Connection Status',
-                    value: `${statusEmoji}\nOverall connection health based on latency measurements.`,
+                    value: status + '\nOverall connection health based on latency measurements.',
                     inline: true
                 },
                 {
@@ -71,12 +65,12 @@ module.exports = {
                 },
                 {
                     name: 'Memory Usage',
-                    value: `${ramUsed} MB / ${ramTotal} MB (${ramPercent}%)\nCurrent heap memory consumption. The bot automatically manages memory to prevent leaks.`,
+                    value: ramUsed + ' MB / ' + ramTotal + ' MB (' + ramPercent + '%)\nCurrent heap memory consumption.',
                     inline: false
                 },
                 {
                     name: 'Bot Information',
-                    value: `**Servers:** ${interaction.client.guilds.cache.size}\n**Users:** ${interaction.client.users.cache.size}\n**Channels:** ${interaction.client.channels.cache.size}\n**Commands Loaded:** ${interaction.client.commands.size}\n**Node.js Version:** ${process.version}\n**Discord.js Version:** 14.x`,
+                    value: '**Servers:** ' + interaction.client.guilds.cache.size + '\n**Users:** ' + interaction.client.users.cache.size + '\n**Channels:** ' + interaction.client.channels.cache.size + '\n**Commands Loaded:** ' + interaction.client.commands.size + '\n**Node.js Version:** ' + process.version + '\n**Discord.js Version:** 14.x',
                     inline: false
                 },
                 {
