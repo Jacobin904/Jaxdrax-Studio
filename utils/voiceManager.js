@@ -1,7 +1,6 @@
 const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus, VoiceConnectionStatus } = require('@discordjs/voice');
 const SpotifyWebApi = require('spotify-web-api-node');
 const yts = require('yt-stream');
-const ffmpeg = require('ffmpeg-static');
 
 const VOICE_CHANNEL_ID = '1561473045208506479';
 
@@ -15,28 +14,26 @@ const spotifyApi = new SpotifyWebApi({
     clientSecret: process.env.SPOTIFY_CLIENT_SECRET
 });
 
-// Rafraîchir le token Spotify
 async function refreshSpotifyToken() {
     try {
         const data = await spotifyApi.clientCredentialsGrant();
         spotifyApi.setAccessToken(data.body.access_token);
-        console.log('[Voice] Spotify token refreshed');
+        console.log('[Voice] Token Spotify rafraîchi');
     } catch (error) {
-        console.error('[Voice] Error refreshing Spotify token:', error.message);
+        console.error('[Voice] Erreur rafraîchissement token Spotify:', error.message);
     }
 }
 
-// Rejoindre le salon vocal
 async function joinVoice(client) {
     try {
         const channel = client.channels.cache.get(VOICE_CHANNEL_ID);
         if (!channel) {
-            console.error('[Voice] Voice channel not found');
+            console.error('[Voice] Salon vocal non trouvé');
             return false;
         }
 
         if (channel.type !== 2) {
-            console.error('[Voice] Channel is not a voice channel');
+            console.error('[Voice] Le salon n\'est pas un salon vocal');
             return false;
         }
 
@@ -51,27 +48,26 @@ async function joinVoice(client) {
         connection.subscribe(player);
 
         connection.on(VoiceConnectionStatus.Ready, () => {
-            console.log('[Voice] Connected to voice channel');
+            console.log('[Voice] Connecté au salon vocal');
         });
 
         connection.on(VoiceConnectionStatus.Disconnected, () => {
-            console.log('[Voice] Disconnected from voice channel, attempting to reconnect...');
+            console.log('[Voice] Déconnecté du salon vocal, tentative de reconnexion...');
             setTimeout(() => joinVoice(client), 5000);
         });
 
         player.on(AudioPlayerStatus.Idle, () => {
-            console.log('[Voice] Player idle, playing next track');
+            console.log('[Voice] Lecteur inactif, lecture suivante');
             playNext();
         });
 
         return true;
     } catch (error) {
-        console.error('[Voice] Error joining voice channel:', error.message);
+        console.error('[Voice] Erreur connexion salon vocal:', error.message);
         return false;
     }
 }
 
-// Rechercher une chanson Spotify
 async function searchSpotifyTrack(url) {
     try {
         const trackId = url.match(/track\/([a-zA-Z0-9]+)/)?.[1];
@@ -84,12 +80,11 @@ async function searchSpotifyTrack(url) {
             url: url
         };
     } catch (error) {
-        console.error('[Voice] Error searching Spotify track:', error.message);
+        console.error('[Voice] Erreur recherche piste Spotify:', error.message);
         return null;
     }
 }
 
-// Rechercher une playlist Spotify
 async function searchSpotifyPlaylist(url) {
     try {
         const playlistId = url.match(/playlist\/([a-zA-Z0-9]+)/)?.[1];
@@ -102,31 +97,29 @@ async function searchSpotifyPlaylist(url) {
             url: item.track.external_urls.spotify
         }));
     } catch (error) {
-        console.error('[Voice] Error searching Spotify playlist:', error.message);
+        console.error('[Voice] Erreur recherche playlist Spotify:', error.message);
         return [];
     }
 }
 
-// Chercher sur YouTube
 async function searchYouTube(query) {
     try {
         const results = await yts.search(query, { limit: 1 });
         if (results.length === 0) return null;
         return results[0].url;
     } catch (error) {
-        console.error('[Voice] Error searching YouTube:', error.message);
+        console.error('[Voice] Erreur recherche YouTube:', error.message);
         return null;
     }
 }
 
-// Jouer une piste
 async function playTrack(track) {
     try {
         const query = `${track.title} ${track.artist}`;
         const youtubeUrl = await searchYouTube(query);
         
         if (!youtubeUrl) {
-            console.error('[Voice] Could not find track on YouTube');
+            console.error('[Voice] Impossible de trouver la piste sur YouTube');
             return false;
         }
 
@@ -138,15 +131,14 @@ async function playTrack(track) {
         currentTrack = track;
         player.play(resource);
         
-        console.log(`[Voice] Now playing: ${track.title} by ${track.artist}`);
+        console.log(`[Voice] Lecture en cours: ${track.title} par ${track.artist}`);
         return true;
     } catch (error) {
-        console.error('[Voice] Error playing track:', error.message);
+        console.error('[Voice] Erreur lecture piste:', error.message);
         return false;
     }
 }
 
-// Ajouter à la file d'attente
 async function addToQueue(url) {
     if (url.includes('playlist')) {
         const tracks = await searchSpotifyPlaylist(url);
@@ -162,7 +154,6 @@ async function addToQueue(url) {
     return 0;
 }
 
-// Jouer la prochaine piste
 function playNext() {
     if (queue.length > 0) {
         const track = queue.shift();
@@ -172,14 +163,14 @@ function playNext() {
     }
 }
 
-// Obtenir la file d'attente
 function getQueue() {
     return { current: currentTrack, queue: queue };
 }
 
-// Skip la piste actuelle
 function skipTrack() {
-    player.stop();
+    if (player) {
+        player.stop();
+    }
 }
 
 module.exports = {
@@ -187,5 +178,6 @@ module.exports = {
     addToQueue,
     getQueue,
     skipTrack,
-    refreshSpotifyToken
+    refreshSpotifyToken,
+    playNext
 };
