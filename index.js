@@ -287,8 +287,6 @@ async function handleTicketModal(interaction) {
         const description = String(rawDescription || 'No description').substring(0, 1000);
 
         const guild = interaction.guild;
-        
-        // CORRECTION : Trouver le salon "info" ou "informations" pour récupérer sa catégorie parente
         const infoChannel = guild.channels.cache.find(c => c.name === 'info' || c.name === 'informations');
         const targetCategoryId = infoChannel ? infoChannel.parentId : null;
 
@@ -305,7 +303,7 @@ async function handleTicketModal(interaction) {
         const ticketChannel = await guild.channels.create({
             name: `ticket-${safeUsername}`,
             type: ChannelType.GuildText,
-            parent: targetCategoryId, // Utilise la même catégorie que le salon info
+            parent: targetCategoryId,
             topic: `Ticket by ${interaction.user.tag} | Category: ${category}`,
             permissionOverwrites: [
                 { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
@@ -326,9 +324,18 @@ async function handleTicketModal(interaction) {
             .setFooter({ text: 'Jaxdrax Studio Support' })
             .setTimestamp();
 
+        // AJOUT DU BOUTON POUR FERMER LE TICKET
+        const closeButton = new ButtonBuilder()
+            .setCustomId('ticket_close')
+            .setLabel('Close Ticket')
+            .setStyle(ButtonStyle.Danger);
+
+        const closeRow = new ActionRowBuilder().addComponents(closeButton);
+
         await ticketChannel.send({
             content: `${interaction.user} | Staff will be with you shortly.`,
-            embeds: [ticketEmbed]
+            embeds: [ticketEmbed],
+            components: [closeRow]
         });
 
         return interaction.reply({
@@ -387,6 +394,24 @@ client.on(Events.InteractionCreate, async (interaction) => {
         }
         if (id === 'ticket_modal') {
             await handleTicketModal(interaction);
+            return;
+        }
+        if (id === 'ticket_close') {
+            try {
+                const channel = interaction.channel;
+                if (!channel || channel.type !== ChannelType.GuildText) return;
+
+                await interaction.reply({
+                    content: 'Closing ticket in 3 seconds...',
+                    flags: MessageFlags.Ephemeral
+                });
+
+                setTimeout(async () => {
+                    await channel.delete('Ticket closed by user or staff').catch(console.error);
+                }, 3000);
+            } catch (error) {
+                console.error('[Ticket] Close error:', error.message);
+            }
             return;
         }
         if (id.startsWith('info_')) {
