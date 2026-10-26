@@ -46,12 +46,12 @@ const client = new Client({
 client.commands = new Collection();
 client.legacyCommands = new Collection();
 
-// --- Registry sécurisé (empêche l'erreur Invalid string length) ---
+// --- Registry sécurisé ---
 function readRegistry() {
     try {
         if (!fs.existsSync(MESSAGE_FILE)) return {};
         const stats = fs.statSync(MESSAGE_FILE);
-        if (stats.size > 1024 * 1024) { // Si le fichier dépasse 1MB, il est corrompu
+        if (stats.size > 1024 * 1024) {
             console.warn('[Registry] File corrupted or too large, resetting.');
             fs.unlinkSync(MESSAGE_FILE);
             return {};
@@ -271,28 +271,10 @@ async function handleInfoButton(interaction) {
 
 async function handleTicketCreate(interaction) {
     const modal = new ModalBuilder().setCustomId('ticket_modal').setTitle('Open A Support Ticket');
+    const categoryInput = new TextInputBuilder().setCustomId('ticket_category').setLabel('Category').setStyle(TextInputStyle.Short).setPlaceholder('Account, Bug Report, Player Report, Appeal, Licensing').setMaxLength(50).setRequired(true);
+    const descriptionInput = new TextInputBuilder().setCustomId('ticket_description').setLabel('Description').setStyle(TextInputStyle.Paragraph).setPlaceholder('Describe your issue in detail.').setMaxLength(1000).setRequired(true);
     
-    const categoryInput = new TextInputBuilder()
-        .setCustomId('ticket_category')
-        .setLabel('Category')
-        .setStyle(TextInputStyle.Short)
-        .setPlaceholder('Account, Bug Report, Player Report, Appeal, Licensing')
-        .setMaxLength(50) // Limite stricte
-        .setRequired(true);
-
-    const descriptionInput = new TextInputBuilder()
-        .setCustomId('ticket_description')
-        .setLabel('Description')
-        .setStyle(TextInputStyle.Paragraph)
-        .setPlaceholder('Describe your issue in detail.')
-        .setMaxLength(1000) // Limite stricte pour éviter l'erreur Invalid string length
-        .setRequired(true);
-
-    modal.addComponents(
-        new ActionRowBuilder().addComponents(categoryInput),
-        new ActionRowBuilder().addComponents(descriptionInput)
-    );
-
+    modal.addComponents(new ActionRowBuilder().addComponents(categoryInput), new ActionRowBuilder().addComponents(descriptionInput));
     return interaction.showModal(modal);
 }
 
@@ -301,16 +283,18 @@ async function handleTicketModal(interaction) {
         const rawCategory = interaction.fields.getTextInputValue('ticket_category');
         const rawDescription = interaction.fields.getTextInputValue('ticket_description');
 
-        // Nettoyage et limitation stricte des chaînes de caractères
         const category = String(rawCategory || 'Unknown').substring(0, 50);
         const description = String(rawDescription || 'No description').substring(0, 1000);
 
         const guild = interaction.guild;
-        const ticketCategory = guild.channels.cache.find(c => c.name === 'ticket-transcripts' && c.type === ChannelType.GuildCategory);
         
-        if (!ticketCategory) {
+        // CORRECTION : Trouver le salon "info" ou "informations" pour récupérer sa catégorie parente
+        const infoChannel = guild.channels.cache.find(c => c.name === 'info' || c.name === 'informations');
+        const targetCategoryId = infoChannel ? infoChannel.parentId : null;
+
+        if (!targetCategoryId) {
             return interaction.reply({
-                content: 'The ticket category could not be found. Please contact a staff member.',
+                content: 'Could not find the category for the "info" or "informations" channel. Please ensure this channel exists and is placed inside a category.',
                 flags: MessageFlags.Ephemeral
             });
         }
@@ -321,7 +305,7 @@ async function handleTicketModal(interaction) {
         const ticketChannel = await guild.channels.create({
             name: `ticket-${safeUsername}`,
             type: ChannelType.GuildText,
-            parent: ticketCategory.id,
+            parent: targetCategoryId, // Utilise la même catégorie que le salon info
             topic: `Ticket by ${interaction.user.tag} | Category: ${category}`,
             permissionOverwrites: [
                 { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
