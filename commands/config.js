@@ -89,29 +89,6 @@ function fit(text, max = 1000) {
     return value.length > max ? value.substring(0, max - 20) + '\n... (truncated)' : value;
 }
 
-function runtime(source) {
-    const isInteraction = typeof source.deferReply === 'function';
-    return {
-        isInteraction,
-        guild: source.guild,
-        channel: source.channel,
-        member: source.member,
-        user: isInteraction ? source.user : source.author
-    };
-}
-
-async function sendFinal(source, payload) {
-    if (typeof source.deferReply !== 'function') {
-        return source.channel.send(payload);
-    }
-
-    if (source.replied || source.deferred) {
-        return source.editReply(payload).catch(() => source.followUp(payload));
-    }
-
-    return source.reply({ ...payload, flags: MessageFlags.Ephemeral });
-}
-
 function buildReport(guild, changes, errors, preview) {
     let report = '===========================================\n';
     report += 'JAXDRAX STUDIO - SERVER CONFIGURATION DUMP\n';
@@ -195,22 +172,11 @@ module.exports = {
     name: 'config',
     description: 'Audits and configures server roles, channels and permissions',
 
-    async execute(source, isStaffFlag, client) {
-        const ctx = runtime(source);
-        const guild = ctx.guild;
-        const user = ctx.user;
-
-        if (!guild) {
-            return sendFinal(source, {
-                content: 'This command can only be used inside the server.',
-                flags: MessageFlags.Ephemeral
-            });
-        }
-
-        const isStaff = ctx.member?.roles?.cache?.some(r => STAFF_ROLES.includes(r.name)) || isStaffFlag;
+    async execute(interaction) {
+        const isStaff = interaction.member?.roles?.cache?.some(r => STAFF_ROLES.includes(r.name));
 
         if (!isStaff) {
-            return sendFinal(source, {
+            return interaction.reply({
                 embeds: [
                     new EmbedBuilder()
                         .setColor(COLORS.red)
@@ -227,6 +193,7 @@ module.exports = {
             });
         }
 
+        const guild = interaction.guild;
         const me = guild.members.me;
         const botTop = me.roles.highest?.position || 0;
 
@@ -235,7 +202,7 @@ module.exports = {
         if (!me.permissions.has(PermissionFlagsBits.ManageChannels)) missing.push('Manage Channels');
 
         if (missing.length > 0) {
-            return sendFinal(source, {
+            return interaction.reply({
                 embeds: [
                     new EmbedBuilder()
                         .setColor(COLORS.red)
@@ -252,17 +219,24 @@ module.exports = {
             });
         }
 
-        let preview = false;
+        const preview = interaction.options.getBoolean('preview') || false;
 
-        if (ctx.isInteraction && source.options) {
-            preview = source.options.getBoolean('preview') || false;
-        } else {
-            preview = String(source.content || '').toLowerCase().includes('--preview');
-        }
-
-        if (ctx.isInteraction) {
-            await source.deferReply({ flags: MessageFlags.Ephemeral });
-        }
+        // Envoyer le message de confirmation
+        const statusMessage = await interaction.reply({
+            embeds: [
+                new EmbedBuilder()
+                    .setColor(COLORS.dark)
+                    .setTitle('Configuration Starting')
+                    .setDescription(
+                        'The server configuration is starting now.\n\n' +
+                        '**Mode:** ' + (preview ? 'Preview (no changes will be applied)' : 'Live (changes will be applied)') + '\n\n' +
+                        'This process may take a few seconds. Please wait while the bot audits and synchronizes all roles and channels...'
+                    )
+                    .setFooter({ text: 'Jaxdrax Studio Configuration' })
+                    .setTimestamp()
+            ],
+            flags: MessageFlags.Ephemeral
+        });
 
         const changes = [];
         const errors = [];
@@ -281,6 +255,7 @@ module.exports = {
             rolePlans.push({ name, permissions: STAFF_PERMISSIONS, stripDangerous: false });
         }
 
+        // Appliquer les configurations de rôles
         for (const plan of rolePlans) {
             const role = roleByName(plan.name);
             if (!role) continue;
@@ -329,6 +304,7 @@ module.exports = {
             }
         }
 
+        // Appliquer les configurations de salons
         for (const plan of CHANNEL_PLANS) {
             const targets = guild.channels.cache.filter(
                 c => c.type === ChannelType.GuildText && plan.names.includes(c.name)
@@ -394,7 +370,7 @@ module.exports = {
 
         let delivered = false;
         try {
-            await user.send({
+            await interaction.user.send({
                 embeds: [
                     new EmbedBuilder()
                         .setColor(COLORS.dark)
@@ -404,7 +380,7 @@ module.exports = {
                 ]
             });
 
-            await user.send({ files: [{ attachment: filePath, name: fileName }] });
+            await interaction.user.send({ files: [{ attachment: filePath, name: fileName }] });
             delivered = true;
         } catch (error) {
             delivered = false;
@@ -423,7 +399,7 @@ module.exports = {
             .addFields(
                 { name: 'Server', value: guild.name + '\n' + guild.id, inline: true },
                 { name: 'Mode', value: preview ? 'Preview' : 'Live', inline: true },
-                { name: 'Executed By', value: user.tag + '\n' + user.id, inline: true },
+                { name: 'Executed By', value: interaction.user.tag + '\n' + interaction.user.id, inline: true },
                 { name: 'Changes (' + changes.length + ')', value: fit(changes.slice(0, 12).join('\n') || 'No changes required.'), inline: false },
                 { name: 'Issues (' + errors.length + ')', value: fit(errors.slice(0, 10).join('\n') || 'None. Everything applied successfully.'), inline: false },
                 { name: 'Report Delivery', value: delivered ? 'Sent to your direct messages with the .txt attachment.' : 'Direct messages are closed or blocked. Enable DMs from server members and run the command again.', inline: false },
@@ -432,10 +408,11 @@ module.exports = {
             .setFooter({ text: 'Jaxdrax Studio Configuration Tool' })
             .setTimestamp();
 
-        await sendFinal(source, { embeds: [resultEmbed] });
+        // Modifier le message de statut existant
+        await interaction.editReply({ embeds: [resultEmbed] });
 
         if (!delivered) {
-            await sendFinal(source, { files: [{ attachment: filePath, name: fileName }] });
+            await interaction.followUp({ files: [{ attachment: filePath, name: fileName }], flags: MessageFlags.Ephemeral });
         }
     }
 };
