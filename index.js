@@ -12,7 +12,15 @@ const {
     Routes,
     EmbedBuilder,
     MessageFlags,
-    SlashCommandBuilder
+    SlashCommandBuilder,
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle,
+    ModalBuilder,
+    TextInputBuilder,
+    TextInputStyle,
+    ChannelType,
+    PermissionFlagsBits
 } = require('discord.js');
 
 const { COLORS, LOGO_URL, STAFF_ROLES } = require('./config/constants');
@@ -303,6 +311,14 @@ async function handleInfoButton(interaction) {
                     inline: false
                 },
                 {
+                    name: 'Intellectual Property',
+                    value:
+                        'All trademarks, logos, game mechanics, artwork, music, and other creative elements ' +
+                        'are protected under international copyright law. Any unauthorized use will be pursued ' +
+                        'to the fullest extent of the law.',
+                    inline: false
+                },
+                {
                     name: 'Enforcement',
                     value:
                         'Violations may result in a DMCA takedown, a permanent server ban and, ' +
@@ -324,12 +340,7 @@ async function handleInfoButton(interaction) {
     }
 
     if (interaction.customId === 'info_open_ticket') {
-        const guild = interaction.guild;
-        const supportChannel =
-            guild.channels.cache.find(c => c.name === 'ticket-transcripts') ||
-            guild.channels.cache.find(c => c.name === 'staff-chat');
-
-        const embed = new EmbedBuilder()
+        const ticketEmbed = new EmbedBuilder()
             .setColor(COLORS.dark)
             .setTitle('Support Ticket Center')
             .setDescription(
@@ -372,19 +383,107 @@ async function handleInfoButton(interaction) {
                         'Keep the conversation in the ticket. Do not ping staff repeatedly or ' +
                         'open duplicate tickets to speed things up.',
                     inline: false
-                },
-                {
-                    name: 'Where Tickets Are Filed',
-                    value: supportChannel
-                        ? 'Transcripts and staff review take place in ' + supportChannel.toString() + '.'
-                        : 'Ask a staff member for the current ticket channel.',
-                    inline: false
                 }
             )
             .setFooter({ text: 'Jaxdrax Studio Support Team' })
             .setTimestamp();
 
-        return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        const ticketButton = new ButtonBuilder()
+            .setCustomId('ticket_create')
+            .setLabel('Open A Ticket')
+            .setStyle(ButtonStyle.Primary);
+
+        const row = new ActionRowBuilder().addComponents(ticketButton);
+
+        return interaction.reply({ embeds: [ticketEmbed], components: [row], flags: MessageFlags.Ephemeral });
+    }
+
+    if (interaction.customId === 'ticket_create') {
+        const modal = new ModalBuilder()
+            .setCustomId('ticket_modal')
+            .setTitle('Open A Support Ticket');
+
+        const categoryInput = new TextInputBuilder()
+            .setCustomId('ticket_category')
+            .setLabel('Category')
+            .setStyle(TextInputStyle.Short)
+            .setPlaceholder('Account, Bug Report, Player Report, Appeal, Licensing')
+            .setRequired(true);
+
+        const descriptionInput = new TextInputBuilder()
+            .setCustomId('ticket_description')
+            .setLabel('Description')
+            .setStyle(TextInputStyle.Paragraph)
+            .setPlaceholder('Describe your issue in detail. Include your Discord ID, Roblox username, and any relevant information.')
+            .setMaxLength(2000)
+            .setRequired(true);
+
+        const firstRow = new ActionRowBuilder().addComponents(categoryInput);
+        const secondRow = new ActionRowBuilder().addComponents(descriptionInput);
+
+        modal.addComponents(firstRow, secondRow);
+
+        return interaction.showModal(modal);
+    }
+
+    if (interaction.customId === 'ticket_modal') {
+        const category = interaction.fields.getTextInputValue('ticket_category');
+        const description = interaction.fields.getTextInputValue('ticket_description');
+
+        const guild = interaction.guild;
+        const ticketCategory = guild.channels.cache.find(c => c.name === 'ticket-transcripts' && c.type === ChannelType.GuildCategory);
+        
+        if (!ticketCategory) {
+            return interaction.reply({
+                content: 'The ticket category could not be found. Please contact a staff member.',
+                flags: MessageFlags.Ephemeral
+            });
+        }
+
+        const staffRole = guild.roles.cache.find(r => STAFF_ROLES.includes(r.name));
+
+        const ticketChannel = await guild.channels.create({
+            name: `ticket-${interaction.user.username}`,
+            type: ChannelType.GuildText,
+            parent: ticketCategory.id,
+            topic: `Ticket by ${interaction.user.tag} | Category: ${category}`,
+            permissionOverwrites: [
+                {
+                    id: guild.id,
+                    deny: [PermissionFlagsBits.ViewChannel]
+                },
+                {
+                    id: interaction.user.id,
+                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                },
+                {
+                    id: staffRole ? staffRole.id : guild.id,
+                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageMessages]
+                }
+            ]
+        });
+
+        const ticketEmbed = new EmbedBuilder()
+            .setColor(COLORS.dark)
+            .setTitle('Support Ticket Opened')
+            .setDescription(
+                `**User:** ${interaction.user.tag}\n` +
+                `**ID:** ${interaction.user.id}\n` +
+                `**Category:** ${category}\n\n` +
+                `**Description:**\n${description}`
+            )
+            .setFooter({ text: 'Jaxdrax Studio Support' })
+            .setTimestamp();
+
+        await ticketChannel.send({
+            content: `${interaction.user} | Staff will be with you shortly.`,
+            embeds: [ticketEmbed]
+        });
+
+        return interaction.reply({
+            content: `Your ticket has been created: ${ticketChannel}`,
+            flags: MessageFlags.Ephemeral
+        });
     }
 
     return false;
@@ -442,7 +541,7 @@ client.on(Events.InteractionCreate, async interaction => {
 
         const id = interaction.customId || '';
 
-        if (id.startsWith('info_')) {
+        if (id.startsWith('info_') || id === 'ticket_create' || id === 'ticket_modal') {
             await handleInfoButton(interaction);
             return;
         }
