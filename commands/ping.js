@@ -66,7 +66,7 @@ module.exports = {
                 },
                 {
                     name: 'Uptime',
-                    value: uptimeString.join(' ') + '\nTotal time the bot has been running since last restart.`,
+                    value: uptimeString.join(' ') + '\nTotal time the bot has been running since last restart.',
                     inline: false
                 },
                 {
