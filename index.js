@@ -10,10 +10,11 @@ const {
     Events,
     REST,
     Routes,
-    SlashCommandBuilder
+    EmbedBuilder,
+    MessageFlags
 } = require('discord.js');
 
-const { STAFF_ROLES } = require('./config/constants');
+const { STAFF_ROLES, COLORS, LOGO_URL } = require('./config/constants');
 
 const GUILD_ID = process.env.GUILD_ID || '1557003074827194458';
 const PREFIX = '!';
@@ -32,47 +33,38 @@ const client = new Client({
 client.commands = new Collection();
 client.legacyCommands = new Collection();
 
-// ---------- Commandes ----------
+// ---------- 1. Chargement des commandes ----------
 function loadCommands() {
     const folder = path.join(__dirname, 'commands');
-    if (!fs.existsSync(folder)) return;
+    if (!fs.existsSync(folder)) return [];
 
-    const commands = [];
+    const commandsToRegister = [];
 
     for (const file of fs.readdirSync(folder).filter(f => f.endsWith('.js'))) {
         try {
             const command = require(path.join(folder, file));
 
             if (command.data && typeof command.execute === 'function') {
-                // Déjà un slash command
                 client.commands.set(command.data.name, command);
                 client.legacyCommands.set(command.data.name, command);
-                commands.push(command.data.toJSON());
+                commandsToRegister.push(command.data.toJSON());
                 console.log('[Command] Loaded (slash): ' + command.data.name);
             } else if (command.name && typeof command.execute === 'function') {
-                // Créer un slash command dynamique
-                const builder = new SlashCommandBuilder()
-                    .setName(command.name)
-                    .setDescription(command.description || 'Commande sans description');
-
-                client.commands.set(command.name, command);
                 client.legacyCommands.set(command.name, command);
-                commands.push(builder.toJSON());
-                console.log('[Command] Loaded (both): ' + command.name);
+                console.log('[Command] Loaded (prefix): ' + command.name);
             }
         } catch (error) {
             console.error('[Command] Failed to load ' + file + ': ' + error.message);
         }
     }
 
-    return commands;
+    return commandsToRegister;
 }
 
-const commands = loadCommands();
+const commandsToRegister = loadCommands();
 
 async function registerSlashCommands() {
     const clientId = process.env.CLIENT_ID;
-
     if (!clientId) {
         console.error('[Slash] CLIENT_ID is missing in .env');
         return;
@@ -83,20 +75,23 @@ async function registerSlashCommands() {
     try {
         await rest.put(
             Routes.applicationGuildCommands(clientId, GUILD_ID),
-            { body: commands }
+            { body: commandsToRegister }
         );
-        console.log('[Slash] Registered ' + commands.length + ' commands in this server');
+        console.log('[Slash] Registered ' + commandsToRegister.length + ' commands in this server');
     } catch (error) {
         console.error('[Slash] Registration failed: ' + error.message);
     }
 }
 
-// ---------- Evenements ----------
+// ---------- 2. Chargement des événements ----------
 function loadEvents() {
     const folder = path.join(__dirname, 'events');
     if (!fs.existsSync(folder)) return;
 
     for (const file of fs.readdirSync(folder).filter(f => f.endsWith('.js'))) {
+        // On ignore interactionCreate.js car il est géré directement ci-dessous
+        if (file === 'interactionCreate.js') continue;
+
         try {
             const event = require(path.join(folder, file));
             if (!event.name || typeof event.execute !== 'function') continue;
@@ -120,9 +115,10 @@ function loadEvents() {
 
 loadEvents();
 
-// ---------- Interactions (slash commands + boutons + modals) ----------
-client.on(Events.InteractionCreate, async interaction => {
+// ---------- 3. Gestion des interactions (Slash + Boutons + Modals) ----------
+client.on(Events.InteractionCreate, async (interaction) => {
     try {
+        // A. Slash Commands
         if (interaction.isChatInputCommand()) {
             const command = client.commands.get(interaction.commandName);
             if (!command) return;
@@ -133,7 +129,7 @@ client.on(Events.InteractionCreate, async interaction => {
                 console.error('[Slash] ' + interaction.commandName + ': ' + error.message);
                 const payload = {
                     content: 'An unexpected error occurred. Please try again later.',
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 };
                 if (interaction.replied || interaction.deferred) {
                     await interaction.followUp(payload).catch(() => {});
@@ -144,6 +140,7 @@ client.on(Events.InteractionCreate, async interaction => {
             return;
         }
 
+        // B. Boutons et Modals
         if (!interaction.isButton() && !interaction.isModalSubmit()) return;
 
         const id = interaction.customId || '';
@@ -171,14 +168,6 @@ client.on(Events.InteractionCreate, async interaction => {
             }
             return;
         }
-
-        if (id.startsWith('info_')) {
-            console.log('[Info] Button clicked: ' + id);
-        }
-    } catch (error) {
-        console.error('[Interaction] ' + error.message);
-    }
-});
 
         if (id.startsWith('info_')) {
             if (id === 'info_view_license') {
@@ -217,9 +206,13 @@ client.on(Events.InteractionCreate, async interaction => {
                 return;
             }
         }
+    } catch (error) {
+        console.error('[Interaction] ' + error.message);
+    }
+});
 
-// ---------- Commandes avec préfixe ! ----------
-client.on(Events.MessageCreate, async message => {
+// ---------- 4. Commandes avec préfixe ! ----------
+client.on(Events.MessageCreate, async (message) => {
     if (message.author.bot || !message.guild) return;
     if (!message.content.startsWith(PREFIX)) return;
 
@@ -238,7 +231,7 @@ client.on(Events.MessageCreate, async message => {
     }
 });
 
-// ---------- Démarrage ----------
+// ---------- 5. Démarrage ----------
 async function start() {
     try {
         try {
