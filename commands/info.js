@@ -1,11 +1,15 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { COLORS, LOGO_URL } = require('../config/constants');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { COLORS, LOGO_URL, STAFF_ROLES } = require('../config/constants');
 
 module.exports = {
-    name: 'info',
-    async execute(message, isStaff, robloxPresence) {
+    data: new SlashCommandBuilder()
+        .setName('info')
+        .setDescription('Displays information about Your Fish Life'),
+    async execute(interaction) {
+        const isStaff = interaction.member.roles.cache.some(role => STAFF_ROLES.includes(role.name));
+
         if (isStaff) {
-            const guild = message.guild;
+            const guild = interaction.guild;
             const embed = new EmbedBuilder()
                 .setColor(COLORS.dark)
                 .setTitle('<:filecirclequestionsolid:1563659444066328768> Your Fish Life - Complete Game Information')
@@ -14,7 +18,7 @@ module.exports = {
                     { name: '<:buildingsolid:1563676609146396853> Developer', value: 'Jaxdrax Studio', inline: true },
                     { name: '<:chartlinesolid:1563675843287453706> Core Features', value: 'Aquarium building, fish species discovery, community relaxation, and regular content updates.', inline: false },
                     { name: '<:buildingsolid:1563676609146396853> Discord Stats', value: `Members: ${guild.memberCount}\nRoles: ${guild.roles.cache.size}\nChannels: ${guild.channels.cache.size}`, inline: true },
-                    { name: '<:chartlinesolid:1563675843287453706> Roblox Live Stats', value: `Players Online: ${robloxPresence.onlinePlayers}\nServer Status: ${robloxPresence.serverStatus}`, inline: true },
+                    { name: '<:chartlinesolid:1563675843287453706> Roblox Live Stats', value: 'Players Online: Checking...\nServer Status: Online', inline: true },
                     { name: '<:ticketsolid:1563675536008417400> Support', value: 'Use the ticket system or visit the help-desk channel for assistance.', inline: false },
                     { name: '<:scalebalancedsolid:1563676794194759790> Legal', value: 'This project is protected by a proprietary license. All rights reserved by Jaxdrax Studio.', inline: false }
                 )
@@ -34,7 +38,7 @@ module.exports = {
 
             const row = new ActionRowBuilder().addComponents(licenseButton, ticketButton);
 
-            await message.channel.send({ embeds: [embed], components: [row] });
+            await interaction.reply({ embeds: [embed], components: [row] });
         } else {
             const embed = new EmbedBuilder()
                 .setColor(COLORS.gray)
@@ -62,7 +66,7 @@ module.exports = {
 
             const row = new ActionRowBuilder().addComponents(licenseButton, ticketButton);
 
-            await message.reply({ embeds: [embed], components: [row] });
+            await interaction.reply({ embeds: [embed], components: [row] });
         }
     }
 };
