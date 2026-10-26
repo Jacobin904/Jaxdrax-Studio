@@ -222,7 +222,6 @@ function loadEvents() {
     if (!fs.existsSync(folder)) return;
 
     for (const file of fs.readdirSync(folder).filter(f => f.endsWith('.js'))) {
-        // Ignore les fichiers qui gèrent les interactions (maintenant gérés dans index.js)
         if (file === 'interactionCreate.js' || file === 'modpanelInteractions.js' || file === 'modpanelModalHandler.js') {
             console.log('[Event] Skipped (managed in index.js): ' + file);
             continue;
@@ -265,49 +264,32 @@ async function handleInfoButton(interaction) {
             .addFields(
                 {
                     name: 'Copyright And Ownership',
-                    value:
-                        'Copyright (c) 2026 Jaxdrax Studio. All rights reserved.\n' +
-                        'All code, scripts, models, textures, audio, artwork, branding and game design ' +
-                        'remain the property of Jaxdrax Studio.',
+                    value: 'Copyright (c) 2026 Jaxdrax Studio. All rights reserved.\nAll code, scripts, models, textures, audio, artwork, branding and game design remain the property of Jaxdrax Studio.',
                     inline: false
                 },
                 {
                     name: 'Permitted Use',
-                    value:
-                        'Personal, non-commercial play of Your Fish Life.\n' +
-                        'Sharing the official game link and inviting other players.\n' +
-                        'Posting screenshots or clips for personal, non-monetized community use.',
+                    value: 'Personal, non-commercial play of Your Fish Life.\nSharing the official game link and inviting other players.\nPosting screenshots or clips for personal, non-monetized community use.',
                     inline: false
                 },
                 {
                     name: 'Prohibited Use',
-                    value:
-                        'Redistributing, reselling or sublicensing any game asset.\n' +
-                        'Reverse engineering, decompiling or extracting game files.\n' +
-                        'Reuploading the game or claiming it as your own work.\n' +
-                        'Commercial use, monetized reposts or paid access without a written agreement.',
+                    value: 'Redistributing, reselling or sublicensing any game asset.\nReverse engineering, decompiling or extracting game files.\nReuploading the game or claiming it as your own work.\nCommercial use, monetized reposts or paid access without a written agreement.',
                     inline: false
                 },
                 {
                     name: 'Intellectual Property',
-                    value:
-                        'All trademarks, logos, game mechanics, artwork, music, and other creative elements ' +
-                        'are protected under international copyright law. Any unauthorized use will be pursued ' +
-                        'to the fullest extent of the law.',
+                    value: 'All trademarks, logos, game mechanics, artwork, music, and other creative elements are protected under international copyright law. Any unauthorized use will be pursued to the fullest extent of the law.',
                     inline: false
                 },
                 {
                     name: 'Enforcement',
-                    value:
-                        'Violations may result in a DMCA takedown, a permanent server ban and, ' +
-                        'where applicable, legal action. Exceptions require written approval from Jaxdrax Studio.',
+                    value: 'Violations may result in a DMCA takedown, a permanent server ban and, where applicable, legal action. Exceptions require written approval from Jaxdrax Studio.',
                     inline: false
                 },
                 {
                     name: 'Licensing Inquiries',
-                    value:
-                        'For partnership, press or commercial licensing requests, open a support ticket ' +
-                        'and select the Licensing category.',
+                    value: 'For partnership, press or commercial licensing requests, open a support ticket and select the Licensing category.',
                     inline: false
                 }
             )
@@ -328,38 +310,22 @@ async function handleInfoButton(interaction) {
             .addFields(
                 {
                     name: 'Before Opening A Ticket',
-                    value:
-                        '1. Check the rules and information channels.\n' +
-                        '2. Search previous tickets if you have opened one before.\n' +
-                        '3. Gather your user ID, a description and any screenshots.\n' +
-                        '4. Open one ticket per issue instead of spamming several.',
+                    value: '1. Check the rules and information channels.\n2. Search previous tickets if you have opened one before.\n3. Gather your user ID, a description and any screenshots.\n4. Open one ticket per issue instead of spamming several.',
                     inline: false
                 },
                 {
                     name: 'Ticket Categories',
-                    value:
-                        '**Account:** login problems, verification, linked accounts.\n' +
-                        '**Bug Report:** crashes, broken features, unexpected behavior.\n' +
-                        '**Player Report:** harassment, exploits, rule violations.\n' +
-                        '**Appeal:** review of a warning, timeout, kick or ban.\n' +
-                        '**Licensing:** permission requests and partnerships.',
+                    value: '**Account:** login problems, verification, linked accounts.\n**Bug Report:** crashes, broken features, unexpected behavior.\n**Player Report:** harassment, exploits, rule violations.\n**Appeal:** review of a warning, timeout, kick or ban.\n**Licensing:** permission requests and partnerships.',
                     inline: false
                 },
                 {
                     name: 'What To Include',
-                    value:
-                        'Your Discord user ID, your Roblox username, a clear description of the issue, ' +
-                        'steps to reproduce it if it is a bug, and the date it happened. ' +
-                        'Never include passwords or payment information.',
+                    value: 'Your Discord user ID, your Roblox username, a clear description of the issue, steps to reproduce it if it is a bug, and the date it happened. Never include passwords or payment information.',
                     inline: false
                 },
                 {
                     name: 'Response And Conduct',
-                    value:
-                        'Typical first response: 2 to 4 hours.\n' +
-                        'Appeals are reviewed within 48 hours.\n' +
-                        'Keep the conversation in the ticket. Do not ping staff repeatedly or ' +
-                        'open duplicate tickets to speed things up.',
+                    value: 'Typical first response: 2 to 4 hours.\nAppeals are reviewed within 48 hours.\nKeep the conversation in the ticket. Do not ping staff repeatedly or open duplicate tickets to speed things up.',
                     inline: false
                 }
             )
@@ -445,6 +411,11 @@ async function handleTicketModal(interaction) {
             ]
         });
 
+        // CORRECTION : Tronquer la description pour éviter l'erreur "Invalid string length" (limite de 2000 caractères)
+        const safeDescription = description.length > 1800 
+            ? description.substring(0, 1800) + '\n\n*(Message tronqué car trop long)*' 
+            : description;
+
         const ticketEmbed = new EmbedBuilder()
             .setColor(COLORS.dark)
             .setTitle('Support Ticket Opened')
@@ -452,7 +423,7 @@ async function handleTicketModal(interaction) {
                 `**User:** ${interaction.user.tag}\n` +
                 `**ID:** ${interaction.user.id}\n` +
                 `**Category:** ${category}\n\n` +
-                `**Description:**\n${description}`
+                `**Description:**\n${safeDescription}`
             )
             .setFooter({ text: 'Jaxdrax Studio Support' })
             .setTimestamp();
@@ -467,7 +438,7 @@ async function handleTicketModal(interaction) {
             flags: MessageFlags.Ephemeral
         });
     } catch (error) {
-        console.error('[Ticket] Error:', error.message);
+        console.error('[Ticket] Create error:', error.message);
         return interaction.reply({
             content: 'An error occurred while creating your ticket. Please try again later.',
             flags: MessageFlags.Ephemeral
