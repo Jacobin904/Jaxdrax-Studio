@@ -222,7 +222,11 @@ function loadEvents() {
     if (!fs.existsSync(folder)) return;
 
     for (const file of fs.readdirSync(folder).filter(f => f.endsWith('.js'))) {
-        if (file === 'interactionCreate.js' || file === 'modpanelInteractions.js' || file === 'modpanelModalHandler.js') continue;
+        // Ignore les fichiers qui gèrent les interactions (maintenant gérés dans index.js)
+        if (file === 'interactionCreate.js' || file === 'modpanelInteractions.js' || file === 'modpanelModalHandler.js') {
+            console.log('[Event] Skipped (managed in index.js): ' + file);
+            continue;
+        }
 
         try {
             const event = require(path.join(folder, file));
@@ -404,63 +408,71 @@ async function handleTicketCreate(interaction) {
 }
 
 async function handleTicketModal(interaction) {
-    const category = interaction.fields.getTextInputValue('ticket_category');
-    const description = interaction.fields.getTextInputValue('ticket_description');
+    try {
+        const category = interaction.fields.getTextInputValue('ticket_category');
+        const description = interaction.fields.getTextInputValue('ticket_description');
 
-    const guild = interaction.guild;
-    const ticketCategory = guild.channels.cache.find(c => c.name === 'ticket-transcripts' && c.type === ChannelType.GuildCategory);
-    
-    if (!ticketCategory) {
+        const guild = interaction.guild;
+        const ticketCategory = guild.channels.cache.find(c => c.name === 'ticket-transcripts' && c.type === ChannelType.GuildCategory);
+        
+        if (!ticketCategory) {
+            return interaction.reply({
+                content: 'The ticket category could not be found. Please contact a staff member.',
+                flags: MessageFlags.Ephemeral
+            });
+        }
+
+        const staffRole = guild.roles.cache.find(r => STAFF_ROLES.includes(r.name));
+
+        const ticketChannel = await guild.channels.create({
+            name: `ticket-${interaction.user.username}`,
+            type: ChannelType.GuildText,
+            parent: ticketCategory.id,
+            topic: `Ticket by ${interaction.user.tag} | Category: ${category}`,
+            permissionOverwrites: [
+                {
+                    id: guild.id,
+                    deny: [PermissionFlagsBits.ViewChannel]
+                },
+                {
+                    id: interaction.user.id,
+                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                },
+                {
+                    id: staffRole ? staffRole.id : guild.id,
+                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageMessages]
+                }
+            ]
+        });
+
+        const ticketEmbed = new EmbedBuilder()
+            .setColor(COLORS.dark)
+            .setTitle('Support Ticket Opened')
+            .setDescription(
+                `**User:** ${interaction.user.tag}\n` +
+                `**ID:** ${interaction.user.id}\n` +
+                `**Category:** ${category}\n\n` +
+                `**Description:**\n${description}`
+            )
+            .setFooter({ text: 'Jaxdrax Studio Support' })
+            .setTimestamp();
+
+        await ticketChannel.send({
+            content: `${interaction.user} | Staff will be with you shortly.`,
+            embeds: [ticketEmbed]
+        });
+
         return interaction.reply({
-            content: 'The ticket category could not be found. Please contact a staff member.',
+            content: `Your ticket has been created: ${ticketChannel}`,
+            flags: MessageFlags.Ephemeral
+        });
+    } catch (error) {
+        console.error('[Ticket] Error:', error.message);
+        return interaction.reply({
+            content: 'An error occurred while creating your ticket. Please try again later.',
             flags: MessageFlags.Ephemeral
         });
     }
-
-    const staffRole = guild.roles.cache.find(r => STAFF_ROLES.includes(r.name));
-
-    const ticketChannel = await guild.channels.create({
-        name: `ticket-${interaction.user.username}`,
-        type: ChannelType.GuildText,
-        parent: ticketCategory.id,
-        topic: `Ticket by ${interaction.user.tag} | Category: ${category}`,
-        permissionOverwrites: [
-            {
-                id: guild.id,
-                deny: [PermissionFlagsBits.ViewChannel]
-            },
-            {
-                id: interaction.user.id,
-                allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-            },
-            {
-                id: staffRole ? staffRole.id : guild.id,
-                allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageMessages]
-            }
-        ]
-    });
-
-    const ticketEmbed = new EmbedBuilder()
-        .setColor(COLORS.dark)
-        .setTitle('Support Ticket Opened')
-        .setDescription(
-            `**User:** ${interaction.user.tag}\n` +
-            `**ID:** ${interaction.user.id}\n` +
-            `**Category:** ${category}\n\n` +
-            `**Description:**\n${description}`
-        )
-        .setFooter({ text: 'Jaxdrax Studio Support' })
-        .setTimestamp();
-
-    await ticketChannel.send({
-        content: `${interaction.user} | Staff will be with you shortly.`,
-        embeds: [ticketEmbed]
-    });
-
-    return interaction.reply({
-        content: `Your ticket has been created: ${ticketChannel}`,
-        flags: MessageFlags.Ephemeral
-    });
 }
 
 client.on(Events.InteractionCreate, async interaction => {
