@@ -46,10 +46,16 @@ const client = new Client({
 client.commands = new Collection();
 client.legacyCommands = new Collection();
 
-// --- Registry for panel messages ---
+// --- Registry sécurisé (empêche l'erreur Invalid string length) ---
 function readRegistry() {
     try {
         if (!fs.existsSync(MESSAGE_FILE)) return {};
+        const stats = fs.statSync(MESSAGE_FILE);
+        if (stats.size > 1024 * 1024) { // Si le fichier dépasse 1MB, il est corrompu
+            console.warn('[Registry] File corrupted or too large, resetting.');
+            fs.unlinkSync(MESSAGE_FILE);
+            return {};
+        }
         const parsed = JSON.parse(fs.readFileSync(MESSAGE_FILE, 'utf8'));
         return parsed && typeof parsed === 'object' ? parsed : {};
     } catch (error) {
@@ -265,27 +271,55 @@ async function handleInfoButton(interaction) {
 
 async function handleTicketCreate(interaction) {
     const modal = new ModalBuilder().setCustomId('ticket_modal').setTitle('Open A Support Ticket');
-    const categoryInput = new TextInputBuilder().setCustomId('ticket_category').setLabel('Category').setStyle(TextInputStyle.Short).setPlaceholder('Account, Bug Report, Player Report, Appeal, Licensing').setRequired(true);
-    const descriptionInput = new TextInputBuilder().setCustomId('ticket_description').setLabel('Description').setStyle(TextInputStyle.Paragraph).setPlaceholder('Describe your issue in detail. Include your Discord ID, Roblox username, and any relevant information.').setMaxLength(1800).setRequired(true);
     
-    modal.addComponents(new ActionRowBuilder().addComponents(categoryInput), new ActionRowBuilder().addComponents(descriptionInput));
+    const categoryInput = new TextInputBuilder()
+        .setCustomId('ticket_category')
+        .setLabel('Category')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('Account, Bug Report, Player Report, Appeal, Licensing')
+        .setMaxLength(50) // Limite stricte
+        .setRequired(true);
+
+    const descriptionInput = new TextInputBuilder()
+        .setCustomId('ticket_description')
+        .setLabel('Description')
+        .setStyle(TextInputStyle.Paragraph)
+        .setPlaceholder('Describe your issue in detail.')
+        .setMaxLength(1000) // Limite stricte pour éviter l'erreur Invalid string length
+        .setRequired(true);
+
+    modal.addComponents(
+        new ActionRowBuilder().addComponents(categoryInput),
+        new ActionRowBuilder().addComponents(descriptionInput)
+    );
+
     return interaction.showModal(modal);
 }
 
 async function handleTicketModal(interaction) {
     try {
-        const category = interaction.fields.getTextInputValue('ticket_category');
-        const description = interaction.fields.getTextInputValue('ticket_description');
+        const rawCategory = interaction.fields.getTextInputValue('ticket_category');
+        const rawDescription = interaction.fields.getTextInputValue('ticket_description');
+
+        // Nettoyage et limitation stricte des chaînes de caractères
+        const category = String(rawCategory || 'Unknown').substring(0, 50);
+        const description = String(rawDescription || 'No description').substring(0, 1000);
+
         const guild = interaction.guild;
         const ticketCategory = guild.channels.cache.find(c => c.name === 'ticket-transcripts' && c.type === ChannelType.GuildCategory);
         
         if (!ticketCategory) {
-            return interaction.reply({ content: 'The ticket category could not be found. Please contact a staff member.', flags: MessageFlags.Ephemeral });
+            return interaction.reply({
+                content: 'The ticket category could not be found. Please contact a staff member.',
+                flags: MessageFlags.Ephemeral
+            });
         }
 
         const staffRole = guild.roles.cache.find(r => STAFF_ROLES.includes(r.name));
+        const safeUsername = String(interaction.user.username || 'user').substring(0, 50).replace(/[^a-zA-Z0-9_-]/g, '');
+
         const ticketChannel = await guild.channels.create({
-            name: `ticket-${interaction.user.username}`,
+            name: `ticket-${safeUsername}`,
             type: ChannelType.GuildText,
             parent: ticketCategory.id,
             topic: `Ticket by ${interaction.user.tag} | Category: ${category}`,
@@ -296,19 +330,33 @@ async function handleTicketModal(interaction) {
             ]
         });
 
-        const safeDescription = description.length > 1800 ? description.substring(0, 1800) + '\n\n*(Message truncated)*' : description;
         const ticketEmbed = new EmbedBuilder()
             .setColor(COLORS.dark)
             .setTitle('Support Ticket Opened')
-            .setDescription(`**User:** ${interaction.user.tag}\n**ID:** ${interaction.user.id}\n**Category:** ${category}\n\n**Description:**\n${safeDescription}`)
+            .setDescription(
+                `**User:** ${interaction.user.tag}\n` +
+                `**ID:** ${interaction.user.id}\n` +
+                `**Category:** ${category}\n\n` +
+                `**Description:**\n${description}`
+            )
             .setFooter({ text: 'Jaxdrax Studio Support' })
             .setTimestamp();
 
-        await ticketChannel.send({ content: `${interaction.user} | Staff will be with you shortly.`, embeds: [ticketEmbed] });
-        return interaction.reply({ content: `Your ticket has been created: ${ticketChannel}`, flags: MessageFlags.Ephemeral });
+        await ticketChannel.send({
+            content: `${interaction.user} | Staff will be with you shortly.`,
+            embeds: [ticketEmbed]
+        });
+
+        return interaction.reply({
+            content: `Your ticket has been created: ${ticketChannel}`,
+            flags: MessageFlags.Ephemeral
+        });
     } catch (error) {
-        console.error('[Ticket] Create error:', error.message);
-        return interaction.reply({ content: 'An error occurred while creating your ticket. Please try again later.', flags: MessageFlags.Ephemeral });
+        console.error('[Ticket] Create error:', error.message, error.stack);
+        return interaction.reply({
+            content: 'An error occurred while creating your ticket. Please try again later.',
+            flags: MessageFlags.Ephemeral
+        });
     }
 }
 
@@ -331,7 +379,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
                     await command.execute(interaction, isStaff, client);
                 }
             } catch (error) {
-                console.error('[Slash] ' + interaction.commandName + ': ' + error.message);
+                console.error('[Slash] ' + interaction.commandName + ':', error.message, error.stack);
                 const payload = { content: 'An unexpected error occurred while running this command.', flags: MessageFlags.Ephemeral };
                 if (interaction.replied || interaction.deferred) {
                     await interaction.followUp(payload).catch(() => {});
@@ -366,7 +414,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 const review = require('./commands/review');
                 if (typeof review.handleInteraction === 'function') await review.handleInteraction(interaction);
             } catch (error) {
-                console.error('[Review] ' + error.message);
+                console.error('[Review]', error.message, error.stack);
             }
             return;
         }
@@ -375,12 +423,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 const panel = require('./utils/modpanel');
                 if (typeof panel.handleInteraction === 'function') await panel.handleInteraction(interaction);
             } catch (error) {
-                console.error('[Modpanel] ' + error.message);
+                console.error('[Modpanel]', error.message, error.stack);
             }
             return;
         }
     } catch (error) {
-        console.error('[Interaction] ' + error.message);
+        console.error('[Interaction]', error.message, error.stack);
     }
 });
 
@@ -404,7 +452,7 @@ client.on(Events.MessageCreate, async (message) => {
             await command.execute(message, isStaff, client);
         }
     } catch (error) {
-        console.error('[Prefix] ' + error.message);
+        console.error('[Prefix]', error.message, error.stack);
     }
 });
 
@@ -415,13 +463,13 @@ async function start() {
             const api = require('./api/server');
             if (typeof api.startServer === 'function') api.startServer();
         } catch (error) {
-            console.error('[API] Not started: ' + error.message);
+            console.error('[API] Not started:', error.message);
         }
 
         await client.login(process.env.DISCORD_TOKEN);
         await registerSlashCommands();
     } catch (error) {
-        console.error('[Bot] Startup failed: ' + error.message);
+        console.error('[Bot] Startup failed:', error.message);
         process.exit(1);
     }
 }
