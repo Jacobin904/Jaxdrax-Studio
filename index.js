@@ -28,7 +28,6 @@ const { COLORS, LOGO_URL, STAFF_ROLES } = require('./config/constants');
 const GUILD_ID = process.env.GUILD_ID || '1557003074827194458';
 const PREFIX = '!';
 
-// Commandes qui postent un panneau dans le salon au lieu de repondre au message.
 const PANEL_COMMANDS = new Set(['info', 'rules']);
 
 const DATA_DIR = path.join(__dirname, 'data');
@@ -47,10 +46,6 @@ const client = new Client({
 
 client.commands = new Collection();
 client.legacyCommands = new Collection();
-
-/* =========================================================
-   SUIVI DES MESSAGES DEJA ENVOYES
-   ========================================================= */
 
 function readRegistry() {
     try {
@@ -82,7 +77,6 @@ async function postOrEdit(guild, channel, commandName, payload) {
     const key = registryKey(guild.id, channel.id, commandName);
     const messageId = registry[key];
 
-    // Contenu normal : pas de flag ephemeral sur un panneau.
     const content = { ...payload };
     delete content.flags;
     delete content.ephemeral;
@@ -93,7 +87,6 @@ async function postOrEdit(guild, channel, commandName, payload) {
             await previous.edit(content);
             return previous;
         } catch (error) {
-            // Message supprime ou trop ancien : on en poste un nouveau.
             delete registry[key];
             writeRegistry(registry);
         }
@@ -115,12 +108,6 @@ function wantsEphemeral(payload) {
     if (Array.isArray(flags)) return flags.includes(MessageFlags.Ephemeral);
     return false;
 }
-
-/* =========================================================
-   ADAPTEUR / ET !
-   Permet aux memes fichiers de commande de fonctionner
-   avec une interaction ou avec un message texte.
-   ========================================================= */
 
 function createContext(source, commandName, isSlash) {
     const guild = source.guild;
@@ -167,10 +154,6 @@ function createContext(source, commandName, isSlash) {
 
     return context;
 }
-
-/* =========================================================
-   CHARGEMENT DES COMMANDES
-   ========================================================= */
 
 function loadCommands() {
     const folder = path.join(__dirname, 'commands');
@@ -234,16 +217,11 @@ async function registerSlashCommands() {
     }
 }
 
-/* =========================================================
-   CHARGEMENT DES EVENEMENTS
-   ========================================================= */
-
 function loadEvents() {
     const folder = path.join(__dirname, 'events');
     if (!fs.existsSync(folder)) return;
 
     for (const file of fs.readdirSync(folder).filter(f => f.endsWith('.js'))) {
-        // Gere directement dans ce fichier pour eviter les doublons.
         if (file === 'interactionCreate.js') continue;
 
         try {
@@ -269,10 +247,6 @@ function loadEvents() {
 }
 
 loadEvents();
-
-/* =========================================================
-   BOUTONS LICENCE ET SUPPORT
-   ========================================================= */
 
 async function handleInfoButton(interaction) {
     if (interaction.customId === 'info_view_license') {
@@ -398,100 +372,96 @@ async function handleInfoButton(interaction) {
         return interaction.reply({ embeds: [ticketEmbed], components: [row], flags: MessageFlags.Ephemeral });
     }
 
-    if (interaction.customId === 'ticket_create') {
-        const modal = new ModalBuilder()
-            .setCustomId('ticket_modal')
-            .setTitle('Open A Support Ticket');
+    return false;
+}
 
-        const categoryInput = new TextInputBuilder()
-            .setCustomId('ticket_category')
-            .setLabel('Category')
-            .setStyle(TextInputStyle.Short)
-            .setPlaceholder('Account, Bug Report, Player Report, Appeal, Licensing')
-            .setRequired(true);
+async function handleTicketCreate(interaction) {
+    const modal = new ModalBuilder()
+        .setCustomId('ticket_modal')
+        .setTitle('Open A Support Ticket');
 
-        const descriptionInput = new TextInputBuilder()
-            .setCustomId('ticket_description')
-            .setLabel('Description')
-            .setStyle(TextInputStyle.Paragraph)
-            .setPlaceholder('Describe your issue in detail. Include your Discord ID, Roblox username, and any relevant information.')
-            .setMaxLength(2000)
-            .setRequired(true);
+    const categoryInput = new TextInputBuilder()
+        .setCustomId('ticket_category')
+        .setLabel('Category')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('Account, Bug Report, Player Report, Appeal, Licensing')
+        .setRequired(true);
 
-        const firstRow = new ActionRowBuilder().addComponents(categoryInput);
-        const secondRow = new ActionRowBuilder().addComponents(descriptionInput);
+    const descriptionInput = new TextInputBuilder()
+        .setCustomId('ticket_description')
+        .setLabel('Description')
+        .setStyle(TextInputStyle.Paragraph)
+        .setPlaceholder('Describe your issue in detail. Include your Discord ID, Roblox username, and any relevant information.')
+        .setMaxLength(2000)
+        .setRequired(true);
 
-        modal.addComponents(firstRow, secondRow);
+    const firstRow = new ActionRowBuilder().addComponents(categoryInput);
+    const secondRow = new ActionRowBuilder().addComponents(descriptionInput);
 
-        return interaction.showModal(modal);
-    }
+    modal.addComponents(firstRow, secondRow);
 
-    if (interaction.customId === 'ticket_modal') {
-        const category = interaction.fields.getTextInputValue('ticket_category');
-        const description = interaction.fields.getTextInputValue('ticket_description');
+    return interaction.showModal(modal);
+}
 
-        const guild = interaction.guild;
-        const ticketCategory = guild.channels.cache.find(c => c.name === 'ticket-transcripts' && c.type === ChannelType.GuildCategory);
-        
-        if (!ticketCategory) {
-            return interaction.reply({
-                content: 'The ticket category could not be found. Please contact a staff member.',
-                flags: MessageFlags.Ephemeral
-            });
-        }
+async function handleTicketModal(interaction) {
+    const category = interaction.fields.getTextInputValue('ticket_category');
+    const description = interaction.fields.getTextInputValue('ticket_description');
 
-        const staffRole = guild.roles.cache.find(r => STAFF_ROLES.includes(r.name));
-
-        const ticketChannel = await guild.channels.create({
-            name: `ticket-${interaction.user.username}`,
-            type: ChannelType.GuildText,
-            parent: ticketCategory.id,
-            topic: `Ticket by ${interaction.user.tag} | Category: ${category}`,
-            permissionOverwrites: [
-                {
-                    id: guild.id,
-                    deny: [PermissionFlagsBits.ViewChannel]
-                },
-                {
-                    id: interaction.user.id,
-                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-                },
-                {
-                    id: staffRole ? staffRole.id : guild.id,
-                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageMessages]
-                }
-            ]
-        });
-
-        const ticketEmbed = new EmbedBuilder()
-            .setColor(COLORS.dark)
-            .setTitle('Support Ticket Opened')
-            .setDescription(
-                `**User:** ${interaction.user.tag}\n` +
-                `**ID:** ${interaction.user.id}\n` +
-                `**Category:** ${category}\n\n` +
-                `**Description:**\n${description}`
-            )
-            .setFooter({ text: 'Jaxdrax Studio Support' })
-            .setTimestamp();
-
-        await ticketChannel.send({
-            content: `${interaction.user} | Staff will be with you shortly.`,
-            embeds: [ticketEmbed]
-        });
-
+    const guild = interaction.guild;
+    const ticketCategory = guild.channels.cache.find(c => c.name === 'ticket-transcripts' && c.type === ChannelType.GuildCategory);
+    
+    if (!ticketCategory) {
         return interaction.reply({
-            content: `Your ticket has been created: ${ticketChannel}`,
+            content: 'The ticket category could not be found. Please contact a staff member.',
             flags: MessageFlags.Ephemeral
         });
     }
 
-    return false;
-}
+    const staffRole = guild.roles.cache.find(r => STAFF_ROLES.includes(r.name));
 
-/* =========================================================
-   INTERACTIONS
-   ========================================================= */
+    const ticketChannel = await guild.channels.create({
+        name: `ticket-${interaction.user.username}`,
+        type: ChannelType.GuildText,
+        parent: ticketCategory.id,
+        topic: `Ticket by ${interaction.user.tag} | Category: ${category}`,
+        permissionOverwrites: [
+            {
+                id: guild.id,
+                deny: [PermissionFlagsBits.ViewChannel]
+            },
+            {
+                id: interaction.user.id,
+                allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+            },
+            {
+                id: staffRole ? staffRole.id : guild.id,
+                allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageMessages]
+            }
+        ]
+    });
+
+    const ticketEmbed = new EmbedBuilder()
+        .setColor(COLORS.dark)
+        .setTitle('Support Ticket Opened')
+        .setDescription(
+            `**User:** ${interaction.user.tag}\n` +
+            `**ID:** ${interaction.user.id}\n` +
+            `**Category:** ${category}\n\n` +
+            `**Description:**\n${description}`
+        )
+        .setFooter({ text: 'Jaxdrax Studio Support' })
+        .setTimestamp();
+
+    await ticketChannel.send({
+        content: `${interaction.user} | Staff will be with you shortly.`,
+        embeds: [ticketEmbed]
+    });
+
+    return interaction.reply({
+        content: `Your ticket has been created: ${ticketChannel}`,
+        flags: MessageFlags.Ephemeral
+    });
+}
 
 client.on(Events.InteractionCreate, async interaction => {
     try {
@@ -507,7 +477,6 @@ client.on(Events.InteractionCreate, async interaction => {
 
             try {
                 if (isPanel) {
-                    // Accuse reception sans poster de reponse au message.
                     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
                     const context = createContext(interaction, interaction.commandName, true);
                     await command.execute(context, isStaff, client);
@@ -529,7 +498,6 @@ client.on(Events.InteractionCreate, async interaction => {
                 }
             } finally {
                 if (isPanel && interaction.deferred) {
-                    // Retire le "Thinking..." provisoire.
                     await interaction.deleteReply().catch(() => {});
                 }
             }
@@ -541,7 +509,17 @@ client.on(Events.InteractionCreate, async interaction => {
 
         const id = interaction.customId || '';
 
-        if (id.startsWith('info_') || id === 'ticket_create' || id === 'ticket_modal') {
+        if (id === 'ticket_create') {
+            await handleTicketCreate(interaction);
+            return;
+        }
+
+        if (id === 'ticket_modal') {
+            await handleTicketModal(interaction);
+            return;
+        }
+
+        if (id.startsWith('info_')) {
             await handleInfoButton(interaction);
             return;
         }
@@ -574,10 +552,6 @@ client.on(Events.InteractionCreate, async interaction => {
     }
 });
 
-/* =========================================================
-   COMMANDES TEXTE !
-   ========================================================= */
-
 client.on(Events.MessageCreate, async message => {
     try {
         if (message.author.bot || !message.guild) return;
@@ -603,10 +577,6 @@ client.on(Events.MessageCreate, async message => {
         console.error('[Prefix] ' + error.message);
     }
 });
-
-/* =========================================================
-   DEMARRAGE
-   ========================================================= */
 
 async function start() {
     try {
