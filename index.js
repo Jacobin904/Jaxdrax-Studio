@@ -9,14 +9,14 @@ const {
     Partials,
     Events,
     REST,
-    Routes
+    Routes,
+    SlashCommandBuilder
 } = require('discord.js');
 
 const { STAFF_ROLES } = require('./config/constants');
 
 const GUILD_ID = process.env.GUILD_ID || '1557003074827194458';
 const PREFIX = '!';
-const REMOVED_COMMANDS = ['play.js', 'skip.js'];
 
 const client = new Client({
     intents: [
@@ -37,26 +37,38 @@ function loadCommands() {
     const folder = path.join(__dirname, 'commands');
     if (!fs.existsSync(folder)) return;
 
-    for (const file of fs.readdirSync(folder).filter(f => f.endsWith('.js'))) {
-        if (REMOVED_COMMANDS.includes(file)) continue;
+    const commands = [];
 
+    for (const file of fs.readdirSync(folder).filter(f => f.endsWith('.js'))) {
         try {
             const command = require(path.join(folder, file));
 
             if (command.data && typeof command.execute === 'function') {
+                // Déjà un slash command
                 client.commands.set(command.data.name, command);
+                client.legacyCommands.set(command.data.name, command);
+                commands.push(command.data.toJSON());
                 console.log('[Command] Loaded (slash): ' + command.data.name);
             } else if (command.name && typeof command.execute === 'function') {
+                // Créer un slash command dynamique
+                const builder = new SlashCommandBuilder()
+                    .setName(command.name)
+                    .setDescription(command.description || 'Commande sans description');
+
+                client.commands.set(command.name, command);
                 client.legacyCommands.set(command.name, command);
-                console.log('[Command] Loaded (prefix): ' + command.name);
+                commands.push(builder.toJSON());
+                console.log('[Command] Loaded (both): ' + command.name);
             }
         } catch (error) {
             console.error('[Command] Failed to load ' + file + ': ' + error.message);
         }
     }
+
+    return commands;
 }
 
-loadCommands();
+const commands = loadCommands();
 
 async function registerSlashCommands() {
     const clientId = process.env.CLIENT_ID;
@@ -66,16 +78,14 @@ async function registerSlashCommands() {
         return;
     }
 
-    const body = client.commands.map(command => command.data.toJSON());
     const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 
     try {
-        // Sync.guild : remplace la liste complete, donc /play et /skip disparaissent.
         await rest.put(
             Routes.applicationGuildCommands(clientId, GUILD_ID),
-            { body }
+            { body: commands }
         );
-        console.log('[Slash] Registered ' + body.length + ' commands in this server');
+        console.log('[Slash] Registered ' + commands.length + ' commands in this server');
     } catch (error) {
         console.error('[Slash] Registration failed: ' + error.message);
     }
@@ -110,7 +120,7 @@ function loadEvents() {
 
 loadEvents();
 
-// ---------- Interactions ----------
+// ---------- Interactions (slash commands + boutons + modals) ----------
 client.on(Events.InteractionCreate, async interaction => {
     try {
         if (interaction.isChatInputCommand()) {
@@ -161,14 +171,18 @@ client.on(Events.InteractionCreate, async interaction => {
             }
             return;
         }
+
+        if (id.startsWith('info_')) {
+            console.log('[Info] Button clicked: ' + id);
+        }
     } catch (error) {
         console.error('[Interaction] ' + error.message);
     }
 });
 
-// ---------- Anciennes commandes ! (non touchees) ----------
+// ---------- Commandes avec préfixe ! ----------
 client.on(Events.MessageCreate, async message => {
-    if (message.author.bot || !message.inGuild()) return;
+    if (message.author.bot || !message.guild) return;
     if (!message.content.startsWith(PREFIX)) return;
 
     const args = message.content.slice(PREFIX.length).trim().split(/\s+/);
@@ -182,10 +196,11 @@ client.on(Events.MessageCreate, async message => {
         await command.execute(message, isStaff, client);
     } catch (error) {
         console.error('[Prefix] ' + name + ': ' + error.message);
+        await message.reply('An error occurred while executing this command.').catch(() => {});
     }
 });
 
-// ---------- Demarrage ----------
+// ---------- Démarrage ----------
 async function start() {
     try {
         try {
