@@ -180,6 +180,44 @@ client.on(Events.InteractionCreate, async interaction => {
     }
 });
 
+        if (id.startsWith('info_')) {
+            if (id === 'info_view_license') {
+                try {
+                    await interaction.reply({
+                        embeds: [new EmbedBuilder()
+                            .setColor(COLORS.dark)
+                            .setTitle('License Agreement')
+                            .setDescription('**Proprietary License - All Rights Reserved**\n\n© 2024-2027 Jaxdrax Studio\n\nAll game assets, code, designs, and content are the exclusive property of Jaxdrax Studio. Unauthorized use, distribution, or modification is strictly prohibited.\n\n**Terms:**\n• No redistribution without explicit permission\n• No reverse engineering or decompilation\n• No commercial use without licensing agreement\n• All rights reserved by Jaxdrax Studio\n\nFor licensing inquiries, contact: legal@jaxdraxstudio.com')
+                            .setThumbnail(LOGO_URL)
+                            .setFooter({ text: 'Jaxdrax Studio Legal', iconURL: LOGO_URL })
+                            .setTimestamp()],
+                        flags: MessageFlags.Ephemeral
+                    });
+                } catch (error) {
+                    console.error('[Info] License error:', error.message);
+                }
+                return;
+            }
+
+            if (id === 'info_open_ticket') {
+                try {
+                    await interaction.reply({
+                        embeds: [new EmbedBuilder()
+                            .setColor(COLORS.dark)
+                            .setTitle('Support Ticket')
+                            .setDescription('To open a support ticket, please use the /ticket command in any channel.\n\n**What you can get help with:**\n• Account issues\n• Bug reports\n• Player reports\n• Suggestions\n• General questions\n\n**Response Time:** Usually within 2-4 hours\n\nIf you need immediate assistance, please contact a staff member in the server.')
+                            .setThumbnail(LOGO_URL)
+                            .setFooter({ text: 'Jaxdrax Studio Support', iconURL: LOGO_URL })
+                            .setTimestamp()],
+                        flags: MessageFlags.Ephemeral
+                    });
+                } catch (error) {
+                    console.error('[Info] Ticket error:', error.message);
+                }
+                return;
+            }
+        }
+
 // ---------- Commandes avec préfixe ! ----------
 client.on(Events.MessageCreate, async message => {
     if (message.author.bot || !message.guild) return;
