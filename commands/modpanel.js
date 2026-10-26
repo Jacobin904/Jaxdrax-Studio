@@ -9,7 +9,7 @@
     MessageFlags
 } = require('discord.js');
 
-const { COLORS, LOGO_URL, STAFF_ROLES } = require('../config/constants');
+const { COLORS, LOGO_URL, BANNER_URL, STAFF_ROLES } = require('../config/constants');
 
 async function handleInteraction(interaction) {
     const id = interaction.customId || '';
