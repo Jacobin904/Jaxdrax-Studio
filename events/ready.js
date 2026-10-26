@@ -1,74 +1,85 @@
-const { EmbedBuilder, ActivityType } = require('discord.js');
+const { EmbedBuilder, ActivityType, Events, PermissionFlagsBits } = require('discord.js');
 const { COLORS, LOGO_URL } = require('../config/constants');
-const { sendDevLog } = require('../utils/logger');
 
 let presenceIndex = 0;
+let voiceStarted = false;
 
-function updateBotPresence(client, robloxPresence) {
+function updatePresence(client) {
+    if (!client.user) return;
+
     const guild = client.guilds.cache.first();
-    const memberCount = guild ? guild.memberCount : 0;
-    
-    const streamingMessages = [
+    const members = guild ? guild.memberCount : 0;
+
+    const messages = [
         'Your Fish Life',
-        `${memberCount} members`,
+        members + ' members',
         '/help for commands',
-        `${robloxPresence.onlinePlayers} players in-game`,
         'Jaxdrax Studio'
     ];
-    
-    const currentMessage = streamingMessages[presenceIndex % streamingMessages.length];
-    
+
     client.user.setPresence({
-        activities: [{
-            name: currentMessage,
-            type: ActivityType.Streaming,
-            url: 'https://twitch.tv/jaxdraxstudio'
-        }],
         status: 'online',
-        afk: false
+        activities: [{
+            name: messages[presenceIndex % messages.length],
+            type: ActivityType.Watching
+        }]
     });
-    
+
     presenceIndex++;
 }
 
 module.exports = {
-    name: 'clientReady',
+    name: Events.ClientReady,
     once: true,
-    async execute(client, robloxPresence) {
-        console.log(`Bot online: ${client.user.tag}`);
-        
-        // Rejoindre le salon vocal automatiquement
-        try {
-            const { joinVoice, refreshSpotifyToken } = require('../utils/voiceManager');
-            
-            // Rafraîchir le token Spotify
-            await refreshSpotifyToken();
-            setInterval(refreshSpotifyToken, 3500000); // Toutes les heures
-            
-            // Rejoindre le salon vocal après 5 secondes
-            setTimeout(async () => {
-                const joined = await joinVoice(client);
-                if (joined) {
-                    console.log('[Voice] Successfully joined voice channel');
-                } else {
-                    console.error('[Voice] Failed to join voice channel');
+
+    async execute(client) {
+        console.log('[Bot] Online as ' + client.user.tag);
+
+        updatePresence(client);
+        setInterval(() => updatePresence(client), 120000);
+
+        if (!voiceStarted) {
+            voiceStarted = true;
+
+            setTimeout(() => {
+                try {
+                    const { joinVoice } = require('../utils/voiceManager');
+                    joinVoice(client).catch(error => {
+                        console.error('[Voice] ' + error.message);
+                    });
+                } catch (error) {
+                    console.error('[Voice] Module unavailable: ' + error.message);
                 }
-            }, 5000);
-        } catch (error) {
-            console.error('[Voice] Error initializing voice manager:', error.message);
+            }, 4000);
         }
-        
-        updateBotPresence(client, robloxPresence);
-        setInterval(() => updateBotPresence(client, robloxPresence), 120000);
+
+        const channelId = process.env.DEV_LOGS_CHANNEL_ID;
+        if (!channelId) return;
+
+        const channel = client.channels.cache.get(channelId);
+        if (!channel) return;
+
+        const permissions = channel.permissionsFor(client.user);
+        if (!permissions || !permissions.has(PermissionFlagsBits.SendMessages)) return;
 
         const embed = new EmbedBuilder()
             .setColor(COLORS.dark)
             .setTitle('Bot Online - System Initialized')
-            .setDescription(`The Jaxdrax Studio Bot has successfully connected to Discord and is now fully operational.\n\n**Connection Details:**\n• Tag: ${client.user.tag}\n• ID: ${client.user.id}\n• Servers: ${client.guilds.cache.size}\n• Users: ${client.users.cache.size}\n\nAll monitoring systems are active and ready to track server events.\n\n**Slash Commands:** Use /help to see all available commands.`)
+            .setDescription(
+                'The Jaxdrax Studio Bot has connected to Discord and is fully operational.\n\n' +
+                '**Connection Details**\n' +
+                'Tag: ' + client.user.tag + '\n' +
+                'ID: ' + client.user.id + '\n' +
+                'Servers: ' + client.guilds.cache.size + '\n\n' +
+                '**Voice Status**\n' +
+                'The bot connects automatically to the Jaxdrax Studio || Your Fish Life voice channel and stays connected.\n\n' +
+                '**Commands**\n' +
+                'Use /help to list all available slash commands.'
+            )
             .setThumbnail(LOGO_URL)
             .setFooter({ text: 'Jaxdrax Studio System Monitor', iconURL: LOGO_URL })
             .setTimestamp();
 
-        await sendDevLog(client, embed);
+        await channel.send({ embeds: [embed] }).catch(() => {});
     }
 };
