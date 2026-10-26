@@ -1,16 +1,20 @@
-const { EmbedBuilder, MessageFlags } = require('discord.js');
-const { COLORS, LOGO_URL } = require('../config/constants');
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
+const { COLORS, LOGO_URL, STAFF_ROLES } = require('../config/constants');
 const { skipTrack, getQueue } = require('../utils/voiceManager');
 
 module.exports = {
-    name: 'skip',
-    async execute(message, isStaff) {
+    data: new SlashCommandBuilder()
+        .setName('skip')
+        .setDescription('Passe à la piste suivante'),
+    async execute(interaction) {
+        const isStaff = interaction.member.roles.cache.some(role => STAFF_ROLES.includes(role.name));
+        
         if (!isStaff) {
-            return message.reply({
+            return interaction.reply({
                 embeds: [new EmbedBuilder()
                     .setColor(COLORS.red)
-                    .setTitle('Access Denied')
-                    .setDescription('Only staff members can skip tracks.')
+                    .setTitle('Accès refusé')
+                    .setDescription('Seuls les membres du staff peuvent passer des pistes.')
                     .setThumbnail(LOGO_URL)
                     .setTimestamp()],
                 flags: MessageFlags.Ephemeral
@@ -23,17 +27,17 @@ module.exports = {
         
         const embed = new EmbedBuilder()
             .setColor(COLORS.dark)
-            .setTitle('Track Skipped')
-            .setDescription('Skipped the current track.')
+            .setTitle('Piste passée')
+            .setDescription('La piste actuelle a été passée.')
             .addFields({
-                name: 'Now Playing',
-                value: queueInfo.current ? `${queueInfo.current.title} by ${queueInfo.current.artist}` : 'Nothing playing',
+                name: 'En cours de lecture',
+                value: queueInfo.current ? `${queueInfo.current.title} par ${queueInfo.current.artist}` : 'Rien en lecture',
                 inline: false
             })
             .setThumbnail(LOGO_URL)
-            .setFooter({ text: 'Jaxdrax Studio Music', iconURL: LOGO_URL })
+            .setFooter({ text: 'Musique Jaxdrax Studio', iconURL: LOGO_URL })
             .setTimestamp();
 
-        await message.reply({ embeds: [embed] });
+        await interaction.reply({ embeds: [embed] });
     }
 };
