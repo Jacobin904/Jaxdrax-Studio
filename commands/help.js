@@ -6,6 +6,16 @@ const {
 
 const { COLORS, LOGO_URL, STAFF_ROLES } = require('../config/constants');
 
+const COMMAND_IDS = {
+    config: '1564274366274084945',
+    help: '1564274366274084946',
+    info: '1564274366274084947',
+    modpanel: '1564274366274084948',
+    ping: '1564274366274084949',
+    review: '1564274366274084950',
+    rules: '1564274366274084951'
+};
+
 function runtime(source) {
     const isInteraction = typeof source.deferReply === 'function';
     return {
@@ -61,23 +71,23 @@ module.exports = {
                 {
                     name: 'Getting Started',
                     value:
-                        '/help - Opens this command center and explains how each feature works.\n' +
-                        '/ping - Shows message latency, gateway latency, uptime, memory usage and bot statistics.\n' +
+                        '</help:' + COMMAND_IDS.help + '> - Opens this command center and explains how each feature works.\n' +
+                        '</ping:' + COMMAND_IDS.ping + '> - Shows message latency, gateway latency, uptime, memory usage and bot statistics.\n' +
                         'Use these first if you are unsure where to find something.',
                     inline: false
                 },
                 {
                     name: 'Server Information',
                     value:
-                        '/rules - Staff: posts the full rule set in the current channel for members. Members: receives a direct link to the rules channel.\n' +
-                        '/info - Staff: posts the game information panel with license and support buttons. Members: receives a direct link to the information channel.\n' +
+                        '</rules:' + COMMAND_IDS.rules + '> - Staff: posts the full rule set in the current channel for members. Members: receives a direct link to the rules channel.\n' +
+                        '</info:' + COMMAND_IDS.info + '> - Staff: posts the game information panel with license and support buttons. Members: receives a direct link to the information channel.\n' +
                         'Read the rules before opening a ticket so your request can be handled faster.',
                     inline: false
                 },
                 {
                     name: 'Community Feedback',
                     value:
-                        '/review - Opens the review system with two options: review the server or review a specific staff member.\n' +
+                        '</review:' + COMMAND_IDS.review + '> - Opens the review system with two options: review the server or review a specific staff member.\n' +
                         'Each review requires a rating from 1 to 5 and a written comment.\n' +
                         'Your username, user ID and submission date are attached to the review. Keep feedback respectful and constructive.',
                     inline: false
@@ -85,7 +95,7 @@ module.exports = {
                 {
                     name: 'Support And Tickets',
                     value:
-                        '1. Run /info as a staff member, or open the information panel.\n' +
+                        '1. Run </info:' + COMMAND_IDS.info + '> as a staff member, or open the information panel.\n' +
                         '2. Select Support Ticket.\n' +
                         '3. Select Open A Ticket.\n' +
                         '4. Choose a category and describe your issue.\n\n' +
@@ -95,8 +105,8 @@ module.exports = {
                 {
                     name: 'Staff Tools - Restricted',
                     value:
-                        '/config - Audits and synchronizes every role and channel permission. Supports preview mode with /config preview:true. Sends a complete .txt dump to your DMs.\n' +
-                        '/modpanel - Opens the moderation control panel with member investigation, guides, statistics, quick actions and recent logs.\n' +
+                        '</config:' + COMMAND_IDS.config + '> - Audits and synchronizes every role and channel permission. Supports preview mode with /config preview:true. Sends a complete .txt dump to your DMs.\n' +
+                        '</modpanel:' + COMMAND_IDS.modpanel + '> - Opens the moderation control panel with member investigation, guides, statistics, quick actions and recent logs.\n' +
                         'Required roles: ' + STAFF_ROLES.join(', ') + '.',
                     inline: false
                 },
