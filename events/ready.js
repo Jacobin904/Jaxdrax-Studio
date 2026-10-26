@@ -18,7 +18,7 @@ function updatePresence(client) {
     ];
 
     client.user.setPresence({
-        status: 'online',
+        status: 'dnd',
         activities: [{
             name: messages[presenceIndex % messages.length],
             type: ActivityType.Watching
