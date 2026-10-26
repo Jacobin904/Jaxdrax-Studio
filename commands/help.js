@@ -4,7 +4,7 @@ const {
     MessageFlags
 } = require('discord.js');
 
-const { COLORS, LOGO_URL, STAFF_ROLES } = require('../config/constants');
+const { COLORS, LOGO_URL, BANNER_URL, STAFF_ROLES } = require('../config/constants');
 
 const COMMAND_IDS = {
     config: '1564274366274084945',
