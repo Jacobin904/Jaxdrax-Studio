@@ -10,6 +10,7 @@ module.exports = {
 
     // ==================== LOGO OFFICIEL ====================
     LOGO_URL: 'https://media.discordapp.net/attachments/1561478676850151638/1561543957790330900/q1401r6.png',
+    BANNER_URL: 'https://cdn.discordapp.com/attachments/1561478676850151638/1564345992403488858/b22nrk8.jpg?ex=6ae0ee3c&is=6adf9cbc&hm=9e5ea321a18e546b2eb5797e5109e00bc96b46b41d4b51fa903e4515910ba831'
 
     // ==================== PREFIX DES COMMANDES ====================
     PREFIX: '!',
