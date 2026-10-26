@@ -186,6 +186,7 @@ module.exports = {
                             'Required roles: ' + STAFF_ROLES.join(', ') + '.\n' +
                             'If you believe you should have access, open a support ticket from the information panel.'
                         )
+                        .setImage(BANNER_URL)
                         .setFooter({ text: 'Jaxdrax Studio Security' })
                         .setTimestamp()
                 ],
@@ -212,6 +213,7 @@ module.exports = {
                             name: 'How To Fix',
                             value: 'Move the bot role above the roles it needs to manage in Server Settings, then enable the missing permissions and run the command again.'
                         })
+                        .setImage(BANNER_URL)
                         .setFooter({ text: 'Jaxdrax Studio Configuration' })
                         .setTimestamp()
                 ],
@@ -232,6 +234,7 @@ module.exports = {
                         '**Mode:** ' + (preview ? 'Preview (no changes will be applied)' : 'Live (changes will be applied)') + '\n\n' +
                         'This process may take a few seconds. Please wait while the bot audits and synchronizes all roles and channels...'
                     )
+                    .setImage(BANNER_URL)
                     .setFooter({ text: 'Jaxdrax Studio Configuration' })
                     .setTimestamp()
             ],
@@ -405,6 +408,7 @@ module.exports = {
                 { name: 'Report Delivery', value: delivered ? 'Sent to your direct messages with the .txt attachment.' : 'Direct messages are closed or blocked. Enable DMs from server members and run the command again.', inline: false },
                 { name: 'Next Steps', value: '1. Review the attached report.\n2. Move the bot role above Member, VIP and Beta Tester if anything was skipped.\n3. Run the command again without preview to apply the remaining changes.', inline: false }
             )
+            .setImage(BANNER_URL)
             .setFooter({ text: 'Jaxdrax Studio Configuration Tool' })
             .setTimestamp();
 
