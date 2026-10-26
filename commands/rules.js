@@ -1,9 +1,13 @@
-const { EmbedBuilder } = require('discord.js');
-const { COLORS, LOGO_URL } = require('../config/constants');
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
+const { COLORS, LOGO_URL, STAFF_ROLES } = require('../config/constants');
 
 module.exports = {
-    name: 'rules',
-    async execute(message, isStaff) {
+    data: new SlashCommandBuilder()
+        .setName('rules')
+        .setDescription('Displays the server rules'),
+    async execute(interaction) {
+        const isStaff = interaction.member.roles.cache.some(role => STAFF_ROLES.includes(role.name));
+
         if (isStaff) {
             const embed = new EmbedBuilder()
                 .setColor(COLORS.darkRed)
@@ -23,7 +27,7 @@ module.exports = {
                 .setFooter({ text: 'Jaxdrax Studio Management', iconURL: LOGO_URL })
                 .setTimestamp();
 
-            await message.channel.send({ embeds: [embed] });
+            await interaction.reply({ embeds: [embed] });
         } else {
             const embed = new EmbedBuilder()
                 .setColor(COLORS.red)
@@ -43,7 +47,7 @@ module.exports = {
                 .setFooter({ text: 'Jaxdrax Studio Management', iconURL: LOGO_URL })
                 .setTimestamp();
 
-            await message.reply({ embeds: [embed] });
+            await interaction.reply({ embeds: [embed] });
         }
     }
 };
