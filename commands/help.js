@@ -129,6 +129,7 @@ module.exports = {
                     inline: false
                 }
             )
+            .setImage(BANNER_URL)
             .setFooter({
                 text: (isStaff ? 'Staff View | ' : 'Member View | ') + 'Jaxdrax Studio Command Center',
                 iconURL: LOGO_URL
