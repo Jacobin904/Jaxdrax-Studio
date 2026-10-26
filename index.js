@@ -641,7 +641,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         }
         if (id.startsWith('mod_')) {
             try {
-                const panel = require('../utils/modpanel');
+                const panel = require('./utils/modpanel');
                 if (typeof panel.handleInteraction === 'function') await panel.handleInteraction(interaction);
             } catch (error) {
                 console.error('[Modpanel]', error.message, error.stack);
