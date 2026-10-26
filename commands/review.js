@@ -1,4 +1,5 @@
 const {
+    SlashCommandBuilder,
     EmbedBuilder,
     ActionRowBuilder,
     ButtonBuilder,
@@ -9,9 +10,9 @@ const {
     MessageFlags
 } = require('discord.js');
 
-const { COLORS, LOGO_URL, STAFF_ROLES } = require('../config/constants');
 const fs = require('fs');
 const path = require('path');
+const { COLORS, LOGO_URL, STAFF_ROLES } = require('../config/constants');
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const DATA_FILE = path.join(DATA_DIR, 'reviews.json');
@@ -36,7 +37,7 @@ function saveReview(review) {
         fs.writeFileSync(DATA_FILE, JSON.stringify(reviews, null, 2), 'utf8');
         return true;
     } catch (error) {
-        console.error('[review] Impossible de sauvegarder:', error.message);
+        console.error('[review] Save failed:', error.message);
         return false;
     }
 }
@@ -49,15 +50,11 @@ function parseRating(raw) {
 
 function getReviewChannel(guild) {
     const configuredId = process.env.REVIEW_CHANNEL_ID;
-
     if (configuredId) {
         const configured = guild.channels.cache.get(configuredId);
         if (configured && configured.isTextBased()) return configured;
     }
-
-    return guild.channels.cache.find(
-        channel => channel.name === 'review' && channel.isTextBased()
-    ) || null;
+    return guild.channels.cache.find(channel => channel.name === 'review' && channel.isTextBased()) || null;
 }
 
 async function findStaffMember(guild, query) {
@@ -78,7 +75,7 @@ async function findStaffMember(guild, query) {
         try {
             await guild.members.fetch();
         } catch (error) {
-            // On continue avec le cache disponible
+            // Continue with available cache
         }
 
         member = guild.members.cache.find(m =>
@@ -101,8 +98,7 @@ async function replyError(interaction, description) {
                 .setColor(COLORS.red)
                 .setTitle('Review Not Submitted')
                 .setDescription(description)
-                .setThumbnail(LOGO_URL)
-                .setFooter({ text: 'Jaxdrax Studio Community Feedback', iconURL: LOGO_URL })
+                .setFooter({ text: 'Jaxdrax Studio Community Feedback' })
                 .setTimestamp()
         ],
         flags: MessageFlags.Ephemeral
@@ -191,7 +187,7 @@ async function publishReview(guild, review) {
 
     const embed = new EmbedBuilder()
         .setColor(isServer ? COLORS.dark : COLORS.darkRed)
-        .setTitle(isServer ? '<:buildingsolid:1563676609146396853> New Server Review' : '<:usertiesolid:1563676703019114506> New Staff Review')
+        .setTitle(isServer ? 'New Server Review' : 'New Staff Review')
         .setDescription(
             `A new review has been submitted by <@${review.reviewerId}>.\n\n` +
             `**Reviewer:** ${review.reviewerTag}\n` +
@@ -199,10 +195,8 @@ async function publishReview(guild, review) {
             `**Submitted:** <t:${Math.floor(new Date(review.createdAt).getTime() / 1000)}:F>`
         )
         .addFields(...fields)
-        .setThumbnail(LOGO_URL)
         .setFooter({
-            text: `Review by ${review.reviewerTag} | Jaxdrax Studio`,
-            iconURL: LOGO_URL
+            text: `Review by ${review.reviewerTag} | Jaxdrax Studio`
         })
         .setTimestamp(new Date(review.createdAt));
 
@@ -213,15 +207,20 @@ async function publishReview(guild, review) {
         });
         return channel;
     } catch (error) {
-        console.error('[review] Publication impossible:', error.message);
+        console.error('[review] Publication failed:', error.message);
         return null;
     }
 }
 
 module.exports = {
-    name: 'review',
+    data: new SlashCommandBuilder()
+        .setName('review')
+        .setDescription('Submit a review for the server or a staff member'),
 
-    async execute(message) {
+    name: 'review',
+    description: 'Submit a review for the server or a staff member',
+
+    async execute(interaction) {
         const reviews = loadReviews();
         const serverReviews = reviews.filter(r => r.type === 'server');
 
@@ -231,7 +230,7 @@ module.exports = {
 
         const embed = new EmbedBuilder()
             .setColor(COLORS.dark)
-            .setTitle('<:starsolid:1563676498182021130> Community Review System')
+            .setTitle('Community Review System')
             .setDescription(
                 'Your feedback helps Jaxdrax Studio improve Your Fish Life and the way our staff supports the community.\n\n' +
                 'Choose below what you want to review. Both options require a rating out of 5 and a written comment.\n\n' +
@@ -239,23 +238,22 @@ module.exports = {
             )
             .addFields(
                 {
-                    name: '<:buildingsolid:1563676609146396853> Option 1 - Review the Server',
+                    name: 'Option 1 - Review the Server',
                     value: 'Rate Your Fish Life, the community, the channels and the overall experience. One rating out of 5 plus one comment.',
                     inline: false
                 },
                 {
-                    name: '<:usertiesolid:1563676703019114506> Option 2 - Review a Staff Member',
+                    name: 'Option 2 - Review a Staff Member',
                     value: 'Rate a specific staff member on their help, attitude and efficiency. You must provide their username, mention or ID, plus a rating and a comment.',
                     inline: false
                 },
                 {
-                    name: '<:starhalfstrokesolid:1563659482528088225> Current Server Rating',
+                    name: 'Current Server Rating',
                     value: `${average}${serverReviews.length > 0 ? ' / 5' : ''}\nTotal server reviews: ${serverReviews.length}`,
                     inline: false
                 }
             )
-            .setThumbnail(LOGO_URL)
-            .setFooter({ text: 'Jaxdrax Studio Community Feedback', iconURL: LOGO_URL })
+            .setFooter({ text: 'Jaxdrax Studio Community Feedback' })
             .setTimestamp();
 
         const row = new ActionRowBuilder().addComponents(
@@ -273,7 +271,7 @@ module.exports = {
                 .setStyle(ButtonStyle.Secondary)
         );
 
-        await message.reply({
+        await interaction.reply({
             embeds: [embed],
             components: [row],
             flags: MessageFlags.Ephemeral
@@ -298,8 +296,7 @@ module.exports = {
                             new EmbedBuilder()
                                 .setColor(COLORS.gray)
                                 .setTitle('Review Cancelled')
-                                .setDescription('You cancelled the review. You can run !review again whenever you want to share your feedback.')
-                                .setThumbnail(LOGO_URL)
+                                .setDescription('You cancelled the review. You can run /review again whenever you want to share your feedback.')
                                 .setTimestamp()
                         ],
                         components: []
@@ -341,7 +338,7 @@ module.exports = {
                     embeds: [
                         new EmbedBuilder()
                             .setColor(COLORS.dark)
-                            .setTitle('<:starsolid:1563676498182021130> Server Review Submitted')
+                            .setTitle('Server Review Submitted')
                             .setDescription(
                                 channel
                                     ? `Thank you <@${interaction.user.id}>. Your review has been posted in ${channel} and your name has been announced with it.`
@@ -351,8 +348,7 @@ module.exports = {
                                 { name: 'Your Rating', value: `${rating} / 5`, inline: true },
                                 { name: 'Submitted By', value: `${interaction.user.tag}\n${interaction.user.id}`, inline: true }
                             )
-                            .setThumbnail(LOGO_URL)
-                            .setFooter({ text: 'Jaxdrax Studio Community Feedback', iconURL: LOGO_URL })
+                            .setFooter({ text: 'Jaxdrax Studio Community Feedback' })
                             .setTimestamp()
                     ],
                     flags: MessageFlags.Ephemeral
@@ -411,7 +407,7 @@ module.exports = {
                     embeds: [
                         new EmbedBuilder()
                             .setColor(COLORS.darkRed)
-                            .setTitle('<:usertiesolid:1563676703019114506> Staff Review Submitted')
+                            .setTitle('Staff Review Submitted')
                             .setDescription(
                                 channel
                                     ? `Thank you <@${interaction.user.id}>. Your review of <@${staffMember.id}> has been posted in ${channel} with your name attached.`
@@ -422,8 +418,7 @@ module.exports = {
                                 { name: 'Staff Reviewed', value: `${staffMember.user.tag}\n${staffMember.id}`, inline: true },
                                 { name: 'Submitted By', value: `${interaction.user.tag}\n${interaction.user.id}`, inline: false }
                             )
-                            .setThumbnail(LOGO_URL)
-                            .setFooter({ text: 'Jaxdrax Studio Community Feedback', iconURL: LOGO_URL })
+                            .setFooter({ text: 'Jaxdrax Studio Community Feedback' })
                             .setTimestamp()
                     ],
                     flags: MessageFlags.Ephemeral
@@ -435,14 +430,14 @@ module.exports = {
             return false;
 
         } catch (error) {
-            console.error('[review] Erreur interaction:', error.message);
+            console.error('[review] Interaction error:', error.message);
             try {
                 await replyError(
                     interaction,
                     'An unexpected error occurred while submitting your review. Please try again, and contact the staff if the problem persists.'
                 );
             } catch (secondaryError) {
-                // Interaction expirée : rien d'autre a faire
+                // Interaction expired
             }
             return true;
         }
