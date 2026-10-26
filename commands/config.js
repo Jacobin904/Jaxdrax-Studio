@@ -8,7 +8,7 @@ const DATA_DIR = path.join(__dirname, '..', 'data');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('config')
-        .setDescription('Configure all server permissions automatically')
+        .setDescription('Configure all server permissions automatically and sends a complete dump to your DMs')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     async execute(interaction) {
         const isStaff = interaction.member.roles.cache.some(role => STAFF_ROLES.includes(role.name));
