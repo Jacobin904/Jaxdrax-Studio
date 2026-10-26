@@ -8,7 +8,7 @@ const {
 
 const fs = require('fs');
 const path = require('path');
-const { COLORS, LOGO_URL, STAFF_ROLES } = require('../config/constants');
+const { COLORS, LOGO_URL, BANNER_URL, STAFF_ROLES } = require('../config/constants');
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
 
