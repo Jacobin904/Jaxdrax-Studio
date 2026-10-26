@@ -49,6 +49,7 @@ module.exports = {
                     }
                 )
                 .setThumbnail(LOGO_URL)
+                .setImage(BANNER_URL)
                 .setFooter({ text: 'Jaxdrax Studio Development Team', iconURL: LOGO_URL })
                 .setTimestamp();
 
