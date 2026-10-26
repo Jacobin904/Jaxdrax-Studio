@@ -1,5 +1,5 @@
 const { EmbedBuilder, SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { COLORS, LOGO_URL, STAFF_ROLES } = require('../config/constants');
+const { COLORS, LOGO_URL, BANNER_URL, STAFF_ROLES } = require('../config/constants');
 
 module.exports = {
     data: new SlashCommandBuilder()
