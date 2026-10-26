@@ -29,7 +29,6 @@ const GUILD_ID = process.env.GUILD_ID || '1557003074827194458';
 const PREFIX = '!';
 
 const PANEL_COMMANDS = new Set(['info', 'rules']);
-
 const DATA_DIR = path.join(__dirname, 'data');
 const MESSAGE_FILE = path.join(DATA_DIR, 'command-messages.json');
 
@@ -47,6 +46,7 @@ const client = new Client({
 client.commands = new Collection();
 client.legacyCommands = new Collection();
 
+// --- Registry for panel messages ---
 function readRegistry() {
     try {
         if (!fs.existsSync(MESSAGE_FILE)) return {};
@@ -59,9 +59,7 @@ function readRegistry() {
 
 function writeRegistry(data) {
     try {
-        if (!fs.existsSync(DATA_DIR)) {
-            fs.mkdirSync(DATA_DIR, { recursive: true });
-        }
+        if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
         fs.writeFileSync(MESSAGE_FILE, JSON.stringify(data, null, 2), 'utf8');
     } catch (error) {
         console.error('[Registry] Save failed:', error.message);
@@ -96,7 +94,6 @@ async function postOrEdit(guild, channel, commandName, payload) {
     const updated = readRegistry();
     updated[key] = sent.id;
     writeRegistry(updated);
-
     return sent;
 }
 
@@ -117,21 +114,16 @@ function createContext(source, commandName, isSlash) {
         if (wantsEphemeral(payload)) {
             const options = { ...payload, flags: MessageFlags.Ephemeral };
             delete options.ephemeral;
-
             if (isSlash) {
-                if (source.replied || source.deferred) {
-                    return source.followUp(options);
-                }
+                if (source.replied || source.deferred) return source.followUp(options);
                 return source.reply(options);
             }
-
             return channel.send(options);
         }
-
         return postOrEdit(guild, channel, commandName, payload);
     }
 
-    const context = {
+    return {
         client,
         guild,
         member: source.member,
@@ -145,25 +137,19 @@ function createContext(source, commandName, isSlash) {
         },
         reply: payload => deliver(payload),
         followUp: payload => deliver(payload),
-        editReply: payload => deliver(payload)
+        editReply: payload => deliver(payload),
+        isChatInputCommand: () => isSlash
     };
-
-    if (isSlash) {
-        context.isChatInputCommand = () => true;
-    }
-
-    return context;
 }
 
+// --- Load Commands ---
 function loadCommands() {
     const folder = path.join(__dirname, 'commands');
     if (!fs.existsSync(folder)) return [];
 
     const toRegister = [];
-
     for (const file of fs.readdirSync(folder).filter(f => f.endsWith('.js'))) {
         if (file === 'play.js' || file === 'skip.js') continue;
-
         try {
             const command = require(path.join(folder, file));
             if (typeof command.execute !== 'function') continue;
@@ -176,21 +162,16 @@ function loadCommands() {
                 toRegister.push(command.data.toJSON());
                 console.log('[Command] Loaded (slash): ' + name);
             } else {
-                const fallback = new SlashCommandBuilder()
-                    .setName(name)
-                    .setDescription(command.description || 'Runs the ' + name + ' command');
-
+                const fallback = new SlashCommandBuilder().setName(name).setDescription(command.description || 'Runs the ' + name + ' command');
                 client.commands.set(name, command);
                 toRegister.push(fallback.toJSON());
                 console.log('[Command] Loaded (auto slash): ' + name);
             }
-
             client.legacyCommands.set(name, command);
         } catch (error) {
             console.error('[Command] Failed to load ' + file + ': ' + error.message);
         }
     }
-
     return toRegister;
 }
 
@@ -198,25 +179,20 @@ const commandsToRegister = loadCommands();
 
 async function registerSlashCommands() {
     const clientId = process.env.CLIENT_ID;
-
     if (!clientId) {
         console.error('[Slash] CLIENT_ID is missing in .env');
         return;
     }
-
     const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
-
     try {
-        const result = await rest.put(
-            Routes.applicationGuildCommands(clientId, GUILD_ID),
-            { body: commandsToRegister }
-        );
+        const result = await rest.put(Routes.applicationGuildCommands(clientId, GUILD_ID), { body: commandsToRegister });
         console.log('[Slash] Registered ' + result.length + ' guild commands');
     } catch (error) {
         console.error('[Slash] Registration failed: ' + error.message);
     }
 }
 
+// --- Load Events ---
 function loadEvents() {
     const folder = path.join(__dirname, 'events');
     if (!fs.existsSync(folder)) return;
@@ -226,76 +202,43 @@ function loadEvents() {
             console.log('[Event] Skipped (managed in index.js): ' + file);
             continue;
         }
-
         try {
             const event = require(path.join(folder, file));
             if (!event.name || typeof event.execute !== 'function') continue;
 
             const isReady = event.name === Events.ClientReady || event.name === 'ready';
-
             const run = (...args) => {
-                Promise.resolve(
-                    isReady ? event.execute(client) : event.execute(client, ...args)
-                ).catch(error => console.error('[Event:' + event.name + ']', error));
+                Promise.resolve(isReady ? event.execute(client) : event.execute(client, ...args))
+                    .catch(error => console.error('[Event:' + event.name + ']', error));
             };
 
             if (event.once) client.once(event.name, run);
             else client.on(event.name, run);
-
             console.log('[Event] Loaded: ' + event.name);
         } catch (error) {
             console.error('[Event] Failed to load ' + file + ': ' + error.message);
         }
     }
 }
-
 loadEvents();
 
+// --- Interaction Handlers ---
 async function handleInfoButton(interaction) {
     if (interaction.customId === 'info_view_license') {
         const embed = new EmbedBuilder()
             .setColor(COLORS.dark)
             .setTitle('Proprietary License Agreement')
-            .setDescription(
-                'Your Fish Life and all associated assets are the exclusive property of Jaxdrax Studio.\n\n' +
-                'This license defines what you may and may not do with the game, its code, and its content. ' +
-                'Accessing or playing the game does not grant ownership of any asset.'
-            )
+            .setDescription('Your Fish Life and all associated assets are the exclusive property of Jaxdrax Studio.\n\nThis license defines what you may and may not do with the game, its code, and its content. Accessing or playing the game does not grant ownership of any asset.')
             .addFields(
-                {
-                    name: 'Copyright And Ownership',
-                    value: 'Copyright (c) 2026 Jaxdrax Studio. All rights reserved.\nAll code, scripts, models, textures, audio, artwork, branding and game design remain the property of Jaxdrax Studio.',
-                    inline: false
-                },
-                {
-                    name: 'Permitted Use',
-                    value: 'Personal, non-commercial play of Your Fish Life.\nSharing the official game link and inviting other players.\nPosting screenshots or clips for personal, non-monetized community use.',
-                    inline: false
-                },
-                {
-                    name: 'Prohibited Use',
-                    value: 'Redistributing, reselling or sublicensing any game asset.\nReverse engineering, decompiling or extracting game files.\nReuploading the game or claiming it as your own work.\nCommercial use, monetized reposts or paid access without a written agreement.',
-                    inline: false
-                },
-                {
-                    name: 'Intellectual Property',
-                    value: 'All trademarks, logos, game mechanics, artwork, music, and other creative elements are protected under international copyright law. Any unauthorized use will be pursued to the fullest extent of the law.',
-                    inline: false
-                },
-                {
-                    name: 'Enforcement',
-                    value: 'Violations may result in a DMCA takedown, a permanent server ban and, where applicable, legal action. Exceptions require written approval from Jaxdrax Studio.',
-                    inline: false
-                },
-                {
-                    name: 'Licensing Inquiries',
-                    value: 'For partnership, press or commercial licensing requests, open a support ticket and select the Licensing category.',
-                    inline: false
-                }
+                { name: 'Copyright And Ownership', value: 'Copyright (c) 2026 Jaxdrax Studio. All rights reserved.\nAll code, scripts, models, textures, audio, artwork, branding and game design remain the property of Jaxdrax Studio.', inline: false },
+                { name: 'Permitted Use', value: 'Personal, non-commercial play of Your Fish Life.\nSharing the official game link and inviting other players.\nPosting screenshots or clips for personal, non-monetized community use.', inline: false },
+                { name: 'Prohibited Use', value: 'Redistributing, reselling or sublicensing any game asset.\nReverse engineering, decompiling or extracting game files.\nReuploading the game or claiming it as your own work.\nCommercial use, monetized reposts or paid access without a written agreement.', inline: false },
+                { name: 'Intellectual Property', value: 'All trademarks, logos, game mechanics, artwork, music, and other creative elements are protected under international copyright law. Any unauthorized use will be pursued to the fullest extent of the law.', inline: false },
+                { name: 'Enforcement', value: 'Violations may result in a DMCA takedown, a permanent server ban and, where applicable, legal action. Exceptions require written approval from Jaxdrax Studio.', inline: false },
+                { name: 'Licensing Inquiries', value: 'For partnership, press or commercial licensing requests, open a support ticket and select the Licensing category.', inline: false }
             )
             .setFooter({ text: 'Jaxdrax Studio | Effective 2026' })
             .setTimestamp();
-
         return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
 
@@ -303,73 +246,29 @@ async function handleInfoButton(interaction) {
         const ticketEmbed = new EmbedBuilder()
             .setColor(COLORS.dark)
             .setTitle('Support Ticket Center')
-            .setDescription(
-                'Our team handles support requests through tickets so every case is documented and ' +
-                'reviewed by the right person. Please read the guide below before opening one.'
-            )
+            .setDescription('Our team handles support requests through tickets so every case is documented and reviewed by the right person. Please read the guide below before opening one.')
             .addFields(
-                {
-                    name: 'Before Opening A Ticket',
-                    value: '1. Check the rules and information channels.\n2. Search previous tickets if you have opened one before.\n3. Gather your user ID, a description and any screenshots.\n4. Open one ticket per issue instead of spamming several.',
-                    inline: false
-                },
-                {
-                    name: 'Ticket Categories',
-                    value: '**Account:** login problems, verification, linked accounts.\n**Bug Report:** crashes, broken features, unexpected behavior.\n**Player Report:** harassment, exploits, rule violations.\n**Appeal:** review of a warning, timeout, kick or ban.\n**Licensing:** permission requests and partnerships.',
-                    inline: false
-                },
-                {
-                    name: 'What To Include',
-                    value: 'Your Discord user ID, your Roblox username, a clear description of the issue, steps to reproduce it if it is a bug, and the date it happened. Never include passwords or payment information.',
-                    inline: false
-                },
-                {
-                    name: 'Response And Conduct',
-                    value: 'Typical first response: 2 to 4 hours.\nAppeals are reviewed within 48 hours.\nKeep the conversation in the ticket. Do not ping staff repeatedly or open duplicate tickets to speed things up.',
-                    inline: false
-                }
+                { name: 'Before Opening A Ticket', value: '1. Check the rules and information channels.\n2. Search previous tickets if you have opened one before.\n3. Gather your user ID, a description and any screenshots.\n4. Open one ticket per issue instead of spamming several.', inline: false },
+                { name: 'Ticket Categories', value: '**Account:** login problems, verification, linked accounts.\n**Bug Report:** crashes, broken features, unexpected behavior.\n**Player Report:** harassment, exploits, rule violations.\n**Appeal:** review of a warning, timeout, kick or ban.\n**Licensing:** permission requests and partnerships.', inline: false },
+                { name: 'What To Include', value: 'Your Discord user ID, your Roblox username, a clear description of the issue, steps to reproduce it if it is a bug, and the date it happened. Never include passwords or payment information.', inline: false },
+                { name: 'Response And Conduct', value: 'Typical first response: 2 to 4 hours.\nAppeals are reviewed within 48 hours.\nKeep the conversation in the ticket. Do not ping staff repeatedly or open duplicate tickets to speed things up.', inline: false }
             )
             .setFooter({ text: 'Jaxdrax Studio Support Team' })
             .setTimestamp();
 
-        const ticketButton = new ButtonBuilder()
-            .setCustomId('ticket_create')
-            .setLabel('Open A Ticket')
-            .setStyle(ButtonStyle.Primary);
-
+        const ticketButton = new ButtonBuilder().setCustomId('ticket_create').setLabel('Open A Ticket').setStyle(ButtonStyle.Primary);
         const row = new ActionRowBuilder().addComponents(ticketButton);
-
         return interaction.reply({ embeds: [ticketEmbed], components: [row], flags: MessageFlags.Ephemeral });
     }
-
     return false;
 }
 
 async function handleTicketCreate(interaction) {
-    const modal = new ModalBuilder()
-        .setCustomId('ticket_modal')
-        .setTitle('Open A Support Ticket');
-
-    const categoryInput = new TextInputBuilder()
-        .setCustomId('ticket_category')
-        .setLabel('Category')
-        .setStyle(TextInputStyle.Short)
-        .setPlaceholder('Account, Bug Report, Player Report, Appeal, Licensing')
-        .setRequired(true);
-
-    const descriptionInput = new TextInputBuilder()
-        .setCustomId('ticket_description')
-        .setLabel('Description')
-        .setStyle(TextInputStyle.Paragraph)
-        .setPlaceholder('Describe your issue in detail. Include your Discord ID, Roblox username, and any relevant information.')
-        .setMaxLength(2000)
-        .setRequired(true);
-
-    const firstRow = new ActionRowBuilder().addComponents(categoryInput);
-    const secondRow = new ActionRowBuilder().addComponents(descriptionInput);
-
-    modal.addComponents(firstRow, secondRow);
-
+    const modal = new ModalBuilder().setCustomId('ticket_modal').setTitle('Open A Support Ticket');
+    const categoryInput = new TextInputBuilder().setCustomId('ticket_category').setLabel('Category').setStyle(TextInputStyle.Short).setPlaceholder('Account, Bug Report, Player Report, Appeal, Licensing').setRequired(true);
+    const descriptionInput = new TextInputBuilder().setCustomId('ticket_description').setLabel('Description').setStyle(TextInputStyle.Paragraph).setPlaceholder('Describe your issue in detail. Include your Discord ID, Roblox username, and any relevant information.').setMaxLength(1800).setRequired(true);
+    
+    modal.addComponents(new ActionRowBuilder().addComponents(categoryInput), new ActionRowBuilder().addComponents(descriptionInput));
     return interaction.showModal(modal);
 }
 
@@ -377,85 +276,50 @@ async function handleTicketModal(interaction) {
     try {
         const category = interaction.fields.getTextInputValue('ticket_category');
         const description = interaction.fields.getTextInputValue('ticket_description');
-
         const guild = interaction.guild;
         const ticketCategory = guild.channels.cache.find(c => c.name === 'ticket-transcripts' && c.type === ChannelType.GuildCategory);
         
         if (!ticketCategory) {
-            return interaction.reply({
-                content: 'The ticket category could not be found. Please contact a staff member.',
-                flags: MessageFlags.Ephemeral
-            });
+            return interaction.reply({ content: 'The ticket category could not be found. Please contact a staff member.', flags: MessageFlags.Ephemeral });
         }
 
         const staffRole = guild.roles.cache.find(r => STAFF_ROLES.includes(r.name));
-
         const ticketChannel = await guild.channels.create({
             name: `ticket-${interaction.user.username}`,
             type: ChannelType.GuildText,
             parent: ticketCategory.id,
             topic: `Ticket by ${interaction.user.tag} | Category: ${category}`,
             permissionOverwrites: [
-                {
-                    id: guild.id,
-                    deny: [PermissionFlagsBits.ViewChannel]
-                },
-                {
-                    id: interaction.user.id,
-                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-                },
-                {
-                    id: staffRole ? staffRole.id : guild.id,
-                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageMessages]
-                }
+                { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
+                { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
+                { id: staffRole ? staffRole.id : guild.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageMessages] }
             ]
         });
 
-        // CORRECTION : Tronquer la description pour éviter l'erreur "Invalid string length" (limite de 2000 caractères)
-        const safeDescription = description.length > 1800 
-            ? description.substring(0, 1800) + '\n\n*(Message tronqué car trop long)*' 
-            : description;
-
+        const safeDescription = description.length > 1800 ? description.substring(0, 1800) + '\n\n*(Message truncated)*' : description;
         const ticketEmbed = new EmbedBuilder()
             .setColor(COLORS.dark)
             .setTitle('Support Ticket Opened')
-            .setDescription(
-                `**User:** ${interaction.user.tag}\n` +
-                `**ID:** ${interaction.user.id}\n` +
-                `**Category:** ${category}\n\n` +
-                `**Description:**\n${safeDescription}`
-            )
+            .setDescription(`**User:** ${interaction.user.tag}\n**ID:** ${interaction.user.id}\n**Category:** ${category}\n\n**Description:**\n${safeDescription}`)
             .setFooter({ text: 'Jaxdrax Studio Support' })
             .setTimestamp();
 
-        await ticketChannel.send({
-            content: `${interaction.user} | Staff will be with you shortly.`,
-            embeds: [ticketEmbed]
-        });
-
-        return interaction.reply({
-            content: `Your ticket has been created: ${ticketChannel}`,
-            flags: MessageFlags.Ephemeral
-        });
+        await ticketChannel.send({ content: `${interaction.user} | Staff will be with you shortly.`, embeds: [ticketEmbed] });
+        return interaction.reply({ content: `Your ticket has been created: ${ticketChannel}`, flags: MessageFlags.Ephemeral });
     } catch (error) {
         console.error('[Ticket] Create error:', error.message);
-        return interaction.reply({
-            content: 'An error occurred while creating your ticket. Please try again later.',
-            flags: MessageFlags.Ephemeral
-        });
+        return interaction.reply({ content: 'An error occurred while creating your ticket. Please try again later.', flags: MessageFlags.Ephemeral });
     }
 }
 
-client.on(Events.InteractionCreate, async interaction => {
+// --- Main Interaction Listener ---
+client.on(Events.InteractionCreate, async (interaction) => {
     try {
         if (interaction.isChatInputCommand()) {
             const command = client.commands.get(interaction.commandName);
             if (!command) return;
 
-            const isStaff = interaction.member
-                ? interaction.member.roles.cache.some(r => STAFF_ROLES.includes(r.name))
-                : false;
-
+            const isStaff = interaction.member ? interaction.member.roles.cache.some(r => STAFF_ROLES.includes(r.name)) : false;
             const isPanel = PANEL_COMMANDS.has(interaction.commandName);
 
             try {
@@ -468,12 +332,7 @@ client.on(Events.InteractionCreate, async interaction => {
                 }
             } catch (error) {
                 console.error('[Slash] ' + interaction.commandName + ': ' + error.message);
-
-                const payload = {
-                    content: 'An unexpected error occurred while running this command.',
-                    flags: MessageFlags.Ephemeral
-                };
-
+                const payload = { content: 'An unexpected error occurred while running this command.', flags: MessageFlags.Ephemeral };
                 if (interaction.replied || interaction.deferred) {
                     await interaction.followUp(payload).catch(() => {});
                 } else {
@@ -484,47 +343,37 @@ client.on(Events.InteractionCreate, async interaction => {
                     await interaction.deleteReply().catch(() => {});
                 }
             }
-
             return;
         }
 
         if (!interaction.isButton() && !interaction.isModalSubmit()) return;
-
         const id = interaction.customId || '';
 
         if (id === 'ticket_create') {
             await handleTicketCreate(interaction);
             return;
         }
-
         if (id === 'ticket_modal') {
             await handleTicketModal(interaction);
             return;
         }
-
         if (id.startsWith('info_')) {
             await handleInfoButton(interaction);
             return;
         }
-
         if (id.startsWith('review_')) {
             try {
                 const review = require('./commands/review');
-                if (typeof review.handleInteraction === 'function') {
-                    await review.handleInteraction(interaction);
-                }
+                if (typeof review.handleInteraction === 'function') await review.handleInteraction(interaction);
             } catch (error) {
                 console.error('[Review] ' + error.message);
             }
             return;
         }
-
         if (id.startsWith('mod_')) {
             try {
                 const panel = require('./utils/modpanel');
-                if (typeof panel.handleInteraction === 'function') {
-                    await panel.handleInteraction(interaction);
-                }
+                if (typeof panel.handleInteraction === 'function') await panel.handleInteraction(interaction);
             } catch (error) {
                 console.error('[Modpanel] ' + error.message);
             }
@@ -535,20 +384,18 @@ client.on(Events.InteractionCreate, async interaction => {
     }
 });
 
-client.on(Events.MessageCreate, async message => {
+// --- Message Listener ---
+client.on(Events.MessageCreate, async (message) => {
     try {
         if (message.author.bot || !message.guild) return;
         if (!message.content.startsWith(PREFIX)) return;
 
         const args = message.content.slice(PREFIX.length).trim().split(/\s+/);
         const name = args.shift().toLowerCase();
-
         const command = client.legacyCommands.get(name);
         if (!command) return;
 
-        const isStaff = message.member
-            ? message.member.roles.cache.some(r => STAFF_ROLES.includes(r.name))
-            : false;
+        const isStaff = message.member ? message.member.roles.cache.some(r => STAFF_ROLES.includes(r.name)) : false;
 
         if (PANEL_COMMANDS.has(name)) {
             const context = createContext(message, name, false);
@@ -561,6 +408,7 @@ client.on(Events.MessageCreate, async message => {
     }
 });
 
+// --- Startup ---
 async function start() {
     try {
         try {
