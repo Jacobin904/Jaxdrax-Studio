@@ -1,160 +1,210 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Collection, Partials, REST, Routes } = require('discord.js');
+
 const fs = require('fs');
 const path = require('path');
+const {
+    Client,
+    Collection,
+    GatewayIntentBits,
+    Partials,
+    Events,
+    REST,
+    Routes
+} = require('discord.js');
 
-const { startServer, updateStats } = require('./api/server');
+const { STAFF_ROLES } = require('./config/constants');
+
+const GUILD_ID = process.env.GUILD_ID || '1557003074827194458';
+const PREFIX = '!';
+const REMOVED_COMMANDS = ['play.js', 'skip.js'];
 
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent,
         GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildPresences,
-        GatewayIntentBits.GuildVoiceStates
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.GuildVoiceStates,
+        GatewayIntentBits.MessageContent
     ],
-    partials: [Partials.Message, Partials.Channel, Partials.GuildMember]
+    partials: [Partials.GuildMember, Partials.Channel]
 });
 
 client.commands = new Collection();
+client.legacyCommands = new Collection();
 
-// Charger les commandes slash
-const commandsPath = path.join(__dirname, 'commands');
-const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
-const commands = [];
+// ---------- Commandes ----------
+function loadCommands() {
+    const folder = path.join(__dirname, 'commands');
+    if (!fs.existsSync(folder)) return;
 
-for (const file of commandFiles) {
-    try {
-        const command = require(path.join(commandsPath, file));
-        if (command.data && typeof command.execute === 'function') {
-            client.commands.set(command.data.name, command);
-            commands.push(command.data.toJSON());
-            console.log(`[Command] Loaded: ${command.data.name}`);
-        }
-    } catch (error) {
-        console.error(`[Command] Failed to load ${file}:`, error.message);
-    }
-}
+    for (const file of fs.readdirSync(folder).filter(f => f.endsWith('.js'))) {
+        if (REMOVED_COMMANDS.includes(file)) continue;
 
-// Enregistrer les slash commands
-const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
+        try {
+            const command = require(path.join(folder, file));
 
-(async () => {
-    try {
-        console.log(`Started refreshing ${commands.length} application (/) commands.`);
-        const data = await rest.put(
-            Routes.applicationCommands(process.env.CLIENT_ID),
-            { body: commands }
-        );
-        console.log(`Successfully reloaded ${data.length} application (/) commands.`);
-    } catch (error) {
-        console.error('Error registering slash commands:', error.message);
-    }
-})();
-
-// Charger les événements
-const eventsPath = path.join(__dirname, 'events');
-const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
-
-for (const file of eventFiles) {
-    try {
-        const event = require(path.join(eventsPath, file));
-        if (event.name && typeof event.execute === 'function') {
-            if (event.once) {
-                client.once(event.name, (...args) => event.execute(...args, client));
-            } else {
-                client.on(event.name, (...args) => event.execute(...args, client));
+            if (command.data && typeof command.execute === 'function') {
+                client.commands.set(command.data.name, command);
+                console.log('[Command] Loaded (slash): ' + command.data.name);
+            } else if (command.name && typeof command.execute === 'function') {
+                client.legacyCommands.set(command.name, command);
+                console.log('[Command] Loaded (prefix): ' + command.name);
             }
-            console.log(`[Event] Loaded: ${event.name}`);
+        } catch (error) {
+            console.error('[Command] Failed to load ' + file + ': ' + error.message);
         }
-    } catch (error) {
-        console.error(`[Event] Failed to load ${file}:`, error.message);
     }
 }
 
-// Gestion des interactions slash
-client.on('interactionCreate', async (interaction) => {
+loadCommands();
+
+async function registerSlashCommands() {
+    const clientId = process.env.CLIENT_ID;
+
+    if (!clientId) {
+        console.error('[Slash] CLIENT_ID is missing in .env');
+        return;
+    }
+
+    const body = client.commands.map(command => command.data.toJSON());
+    const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
+
     try {
-        // Slash commands
+        // Sync.guild : remplace la liste complete, donc /play et /skip disparaissent.
+        await rest.put(
+            Routes.applicationGuildCommands(clientId, GUILD_ID),
+            { body }
+        );
+        console.log('[Slash] Registered ' + body.length + ' commands in this server');
+    } catch (error) {
+        console.error('[Slash] Registration failed: ' + error.message);
+    }
+}
+
+// ---------- Evenements ----------
+function loadEvents() {
+    const folder = path.join(__dirname, 'events');
+    if (!fs.existsSync(folder)) return;
+
+    for (const file of fs.readdirSync(folder).filter(f => f.endsWith('.js'))) {
+        try {
+            const event = require(path.join(folder, file));
+            if (!event.name || typeof event.execute !== 'function') continue;
+
+            const isReady = event.name === Events.ClientReady || event.name === 'ready';
+
+            const run = (...args) => {
+                Promise.resolve(isReady ? event.execute(client) : event.execute(client, ...args))
+                    .catch(error => console.error('[Event:' + event.name + ']', error));
+            };
+
+            if (event.once) client.once(event.name, run);
+            else client.on(event.name, run);
+
+            console.log('[Event] Loaded: ' + event.name);
+        } catch (error) {
+            console.error('[Event] Failed to load ' + file + ': ' + error.message);
+        }
+    }
+}
+
+loadEvents();
+
+// ---------- Interactions ----------
+client.on(Events.InteractionCreate, async interaction => {
+    try {
         if (interaction.isChatInputCommand()) {
             const command = client.commands.get(interaction.commandName);
             if (!command) return;
-            
+
             try {
                 await command.execute(interaction);
             } catch (error) {
-                console.error(`[Command] Error executing ${interaction.commandName}:`, error.message);
-                const errorMessage = { content: 'An error occurred while executing this command.', ephemeral: true };
+                console.error('[Slash] ' + interaction.commandName + ': ' + error.message);
+                const payload = {
+                    content: 'An unexpected error occurred. Please try again later.',
+                    ephemeral: true
+                };
                 if (interaction.replied || interaction.deferred) {
-                    await interaction.followUp(errorMessage);
+                    await interaction.followUp(payload).catch(() => {});
                 } else {
-                    await interaction.reply(errorMessage);
+                    await interaction.reply(payload).catch(() => {});
                 }
             }
+            return;
         }
-        
-        // Boutons et modals (review, modpanel, etc.)
-        if (interaction.isButton() || interaction.isModalSubmit()) {
-            const customId = interaction.customId || '';
-            
-            if (customId.startsWith('review_')) {
-                try {
-                    const reviewCommand = require('./commands/review');
-                    await reviewCommand.handleInteraction(interaction);
-                } catch (error) {
-                    console.error('[Review] Interaction error:', error.message);
+
+        if (!interaction.isButton() && !interaction.isModalSubmit()) return;
+
+        const id = interaction.customId || '';
+
+        if (id.startsWith('review_')) {
+            try {
+                const review = require('./commands/review');
+                if (typeof review.handleInteraction === 'function') {
+                    await review.handleInteraction(interaction);
                 }
-                return;
+            } catch (error) {
+                console.error('[Review] ' + error.message);
             }
-            
-            if (customId.startsWith('mod_')) {
-                try {
-                    const modpanel = require('./utils/modpanel');
-                    await modpanel.handleInteraction(interaction);
-                } catch (error) {
-                    console.error('[Modpanel] Interaction error:', error.message);
+            return;
+        }
+
+        if (id.startsWith('mod_')) {
+            try {
+                const panel = require('./utils/modpanel');
+                if (typeof panel.handleInteraction === 'function') {
+                    await panel.handleInteraction(interaction);
                 }
-                return;
+            } catch (error) {
+                console.error('[Modpanel] ' + error.message);
             }
-            
-            // Tickets et autres interactions
-            if (customId === 'open_ticket') {
-                console.log('[Ticket] Open ticket button clicked');
-            }
+            return;
         }
     } catch (error) {
-        console.error('[Interaction] Error:', error.message);
+        console.error('[Interaction] ' + error.message);
     }
 });
 
-// Démarrage
+// ---------- Anciennes commandes ! (non touchees) ----------
+client.on(Events.MessageCreate, async message => {
+    if (message.author.bot || !message.inGuild()) return;
+    if (!message.content.startsWith(PREFIX)) return;
+
+    const args = message.content.slice(PREFIX.length).trim().split(/\s+/);
+    const name = args.shift().toLowerCase();
+    const command = client.legacyCommands.get(name);
+    if (!command) return;
+
+    const isStaff = message.member.roles.cache.some(role => STAFF_ROLES.includes(role.name));
+
+    try {
+        await command.execute(message, isStaff, client);
+    } catch (error) {
+        console.error('[Prefix] ' + name + ': ' + error.message);
+    }
+});
+
+// ---------- Demarrage ----------
 async function start() {
     try {
-        console.log('[Bot] Starting...');
-        
-        // Démarrer le serveur API
-        startServer();
-        
-        // Connecter le bot
+        try {
+            const api = require('./api/server');
+            if (typeof api.startServer === 'function') api.startServer();
+        } catch (error) {
+            console.error('[API] Not started: ' + error.message);
+        }
+
         await client.login(process.env.DISCORD_TOKEN);
-        console.log('[Bot] Logged in successfully');
-        
-        // Mettre à jour les stats toutes les 2 minutes
-        setInterval(() => {
-            const guild = client.guilds.cache.first();
-            if (guild) {
-                updateStats({
-                    memberCount: guild.memberCount,
-                    robloxPresence: { onlinePlayers: 0, serverStatus: 'Unknown' }
-                });
-            }
-        }, 120000);
-        
+        await registerSlashCommands();
     } catch (error) {
-        console.error('[Bot] Failed to start:', error.message);
+        console.error('[Bot] Startup failed: ' + error.message);
         process.exit(1);
     }
 }
+
+process.on('unhandledRejection', error => {
+    console.error('[Unhandled]', error && error.message ? error.message : error);
+});
 
 start();
