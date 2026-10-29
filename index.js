@@ -23,7 +23,7 @@ const {
     PermissionFlagsBits
 } = require('discord.js');
 
-const { COLORS, LOGO_URL, STAFF_ROLES } = require('./config/constants');
+const { COLORS, LOGO_URL, BANNER_URL, STAFF_ROLES } = require('./config/constants');
 
 const GUILD_ID = process.env.GUILD_ID || '1557003074827194458';
 const PREFIX = '!';
@@ -228,33 +228,6 @@ function loadEvents() {
 }
 loadEvents();
 
-// --- Generate Transcript ---
-async function generateTranscript(channel) {
-    try {
-        const messages = await channel.messages.fetch({ limit: 100 });
-        const sorted = Array.from(messages.values()).reverse();
-        
-        let transcript = `═══════════════════════════════════════════\n`;
-        transcript += `TICKET TRANSCRIPT\n`;
-        transcript += `Channel: #${channel.name}\n`;
-        transcript += `Created: ${channel.createdAt.toUTCString()}\n`;
-        transcript += `Closed: ${new Date().toUTCString()}\n`;
-        transcript += `═══════════════════════════════════════════\n\n`;
-
-        for (const msg of sorted) {
-            const author = msg.author.tag;
-            const timestamp = msg.createdAt.toUTCString();
-            const content = msg.content || '[No content / Embed or attachment]';
-            transcript += `[${timestamp}] ${author}: ${content}\n`;
-        }
-
-        return transcript;
-    } catch (error) {
-        console.error('[Transcript] Error:', error.message);
-        return 'Error generating transcript.';
-    }
-}
-
 // --- Interaction Handlers ---
 async function handleInfoButton(interaction) {
     if (interaction.customId === 'info_view_license') {
@@ -270,7 +243,8 @@ async function handleInfoButton(interaction) {
                 { name: 'Enforcement', value: 'Violations may result in a DMCA takedown, a permanent server ban and, where applicable, legal action. Exceptions require written approval from Jaxdrax Studio.', inline: false },
                 { name: 'Licensing Inquiries', value: 'For partnership, press or commercial licensing requests, open a support ticket and select the Licensing category.', inline: false }
             )
-            .setFooter({ text: 'Jaxdrax Studio | Effective 2026' })
+            .setImage(BANNER_URL)
+            .setFooter({ text: 'Jaxdrax Studio | Effective 2026', iconURL: LOGO_URL })
             .setTimestamp();
         return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
@@ -286,7 +260,8 @@ async function handleInfoButton(interaction) {
                 { name: 'What To Include', value: 'Your Discord user ID, your Roblox username, a clear description of the issue, steps to reproduce it if it is a bug, and the date it happened. Never include passwords or payment information.', inline: false },
                 { name: 'Response And Conduct', value: 'Typical first response: 2 to 4 hours.\nAppeals are reviewed within 48 hours.\nKeep the conversation in the ticket. Do not ping staff repeatedly or open duplicate tickets to speed things up.', inline: false }
             )
-            .setFooter({ text: 'Jaxdrax Studio Support Team' })
+            .setImage(BANNER_URL)
+            .setFooter({ text: 'Jaxdrax Studio Support Team', iconURL: LOGO_URL })
             .setTimestamp();
 
         const ticketButton = new ButtonBuilder().setCustomId('ticket_create').setLabel('Open A Ticket').setStyle(ButtonStyle.Primary);
@@ -297,23 +272,6 @@ async function handleInfoButton(interaction) {
 }
 
 async function handleTicketCreate(interaction) {
-    const guild = interaction.guild;
-    const user = interaction.user;
-
-    // Vérifier si l'utilisateur a déjà un ticket ouvert
-    const existingTicket = guild.channels.cache.find(c => 
-        c.name.startsWith('ticket-') && 
-        c.topic && 
-        c.topic.includes(`Creator: ${user.id}`)
-    );
-
-    if (existingTicket) {
-        return interaction.reply({
-            content: `You already have an open ticket: ${existingTicket}`,
-            flags: MessageFlags.Ephemeral
-        });
-    }
-
     const modal = new ModalBuilder().setCustomId('ticket_modal').setTitle('Open A Support Ticket');
     const categoryInput = new TextInputBuilder().setCustomId('ticket_category').setLabel('Category').setStyle(TextInputStyle.Short).setPlaceholder('Account, Bug Report, Player Report, Appeal, Licensing').setMaxLength(50).setRequired(true);
     const descriptionInput = new TextInputBuilder().setCustomId('ticket_description').setLabel('Description').setStyle(TextInputStyle.Paragraph).setPlaceholder('Describe your issue in detail.').setMaxLength(1000).setRequired(true);
@@ -331,22 +289,6 @@ async function handleTicketModal(interaction) {
         const description = String(rawDescription || 'No description').substring(0, 1000);
 
         const guild = interaction.guild;
-        const user = interaction.user;
-
-        // Vérifier à nouveau si un ticket existe déjà
-        const existingTicket = guild.channels.cache.find(c => 
-            c.name.startsWith('ticket-') && 
-            c.topic && 
-            c.topic.includes(`Creator: ${user.id}`)
-        );
-
-        if (existingTicket) {
-            return interaction.reply({
-                content: `You already have an open ticket: ${existingTicket}`,
-                flags: MessageFlags.Ephemeral
-            });
-        }
-
         const infoChannel = guild.channels.cache.find(c => c.name === 'info' || c.name === 'informations');
         const targetCategoryId = infoChannel ? infoChannel.parentId : null;
 
@@ -358,16 +300,16 @@ async function handleTicketModal(interaction) {
         }
 
         const staffRole = guild.roles.cache.find(r => STAFF_ROLES.includes(r.name));
-        const safeUsername = String(user.username || 'user').substring(0, 50).replace(/[^a-zA-Z0-9_-]/g, '');
+        const safeUsername = String(interaction.user.username || 'user').substring(0, 50).replace(/[^a-zA-Z0-9_-]/g, '');
 
         const ticketChannel = await guild.channels.create({
             name: `ticket-${safeUsername}`,
             type: ChannelType.GuildText,
             parent: targetCategoryId,
-            topic: `Ticket by ${user.tag} | Category: ${category} | Creator: ${user.id}`,
+            topic: `Ticket by ${interaction.user.tag} | Category: ${category} | Creator: ${interaction.user.id}`,
             permissionOverwrites: [
                 { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
-                { id: user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
+                { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
                 { id: staffRole ? staffRole.id : guild.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageMessages] }
             ]
         });
@@ -376,12 +318,13 @@ async function handleTicketModal(interaction) {
             .setColor(COLORS.dark)
             .setTitle('Support Ticket Opened')
             .setDescription(
-                `**User:** ${user.tag}\n` +
-                `**ID:** ${user.id}\n` +
+                `**User:** ${interaction.user.tag}\n` +
+                `**ID:** ${interaction.user.id}\n` +
                 `**Category:** ${category}\n\n` +
                 `**Description:**\n${description}`
             )
-            .setFooter({ text: 'Jaxdrax Studio Support' })
+            .setImage(BANNER_URL)
+            .setFooter({ text: 'Jaxdrax Studio Support', iconURL: LOGO_URL })
             .setTimestamp();
 
         const closeButton = new ButtonBuilder()
@@ -392,7 +335,7 @@ async function handleTicketModal(interaction) {
         const closeRow = new ActionRowBuilder().addComponents(closeButton);
 
         await ticketChannel.send({
-            content: `${user} | Staff will be with you shortly.`,
+            content: `${interaction.user} | Staff will be with you shortly.`,
             embeds: [ticketEmbed],
             components: [closeRow]
         });
@@ -415,14 +358,12 @@ async function handleTicketClose(interaction) {
         const channel = interaction.channel;
         if (!channel || channel.type !== ChannelType.GuildText) return;
 
-        // Extraire l'ID du créateur du topic
         const topicParts = channel.topic ? channel.topic.split('|') : [];
         const creatorPart = topicParts.find(p => p.includes('Creator:'));
         const creatorId = creatorPart ? creatorPart.replace('Creator:', '').trim() : null;
 
         await interaction.deferReply();
 
-        // Retirer la permission ViewChannel au créateur
         if (creatorId) {
             await channel.permissionOverwrites.edit(creatorId, {
                 ViewChannel: false,
@@ -435,7 +376,8 @@ async function handleTicketClose(interaction) {
             .setColor(COLORS.dark)
             .setTitle('Ticket Closed')
             .setDescription('This ticket has been closed by a staff member.\n\nThe ticket creator can no longer see this channel.\n\n**What would you like to do?**')
-            .setFooter({ text: 'Jaxdrax Studio Support' })
+            .setImage(BANNER_URL)
+            .setFooter({ text: 'Jaxdrax Studio Support', iconURL: LOGO_URL })
             .setTimestamp();
 
         const reopenButton = new ButtonBuilder()
@@ -474,7 +416,6 @@ async function handleTicketReopen(interaction) {
 
         await interaction.deferReply();
 
-        // Remettre la permission ViewChannel au créateur
         if (creatorId) {
             await channel.permissionOverwrites.edit(creatorId, {
                 ViewChannel: true,
@@ -487,7 +428,8 @@ async function handleTicketReopen(interaction) {
             .setColor(COLORS.dark)
             .setTitle('Ticket Reopened')
             .setDescription(`This ticket has been reopened by ${interaction.user.tag}.\n\nThe ticket creator can now see and interact in this channel again.`)
-            .setFooter({ text: 'Jaxdrax Studio Support' })
+            .setImage(BANNER_URL)
+            .setFooter({ text: 'Jaxdrax Studio Support', iconURL: LOGO_URL })
             .setTimestamp();
 
         const closeButton = new ButtonBuilder()
@@ -510,6 +452,32 @@ async function handleTicketReopen(interaction) {
     }
 }
 
+async function generateTranscript(channel) {
+    try {
+        const messages = await channel.messages.fetch({ limit: 100 });
+        const sorted = Array.from(messages.values()).reverse();
+        
+        let transcript = `===========================================\n`;
+        transcript += `TICKET TRANSCRIPT\n`;
+        transcript += `Channel: #${channel.name}\n`;
+        transcript += `Created: ${channel.createdAt.toUTCString()}\n`;
+        transcript += `Closed: ${new Date().toUTCString()}\n`;
+        transcript += `===========================================\n\n`;
+
+        for (const msg of sorted) {
+            const author = msg.author.tag;
+            const timestamp = msg.createdAt.toUTCString();
+            const content = msg.content || '[No content / Embed or attachment]';
+            transcript += `[${timestamp}] ${author}: ${content}\n`;
+        }
+
+        return transcript;
+    } catch (error) {
+        console.error('[Transcript] Error:', error.message);
+        return 'Error generating transcript.';
+    }
+}
+
 async function handleTicketDelete(interaction) {
     try {
         const channel = interaction.channel;
@@ -517,10 +485,8 @@ async function handleTicketDelete(interaction) {
 
         await interaction.deferReply();
 
-        // Générer le transcript
         const transcript = await generateTranscript(channel);
 
-        // Chercher le channel transcript
         const guild = interaction.guild;
         const transcriptChannel = guild.channels.cache.find(c => c.name === 'ticket-transcripts');
 
@@ -541,7 +507,8 @@ async function handleTicketDelete(interaction) {
                     `**Closed by:** ${interaction.user.tag}\n` +
                     `**Closed at:** ${new Date().toUTCString()}`
                 )
-                .setFooter({ text: 'Jaxdrax Studio Support' })
+                .setImage(BANNER_URL)
+                .setFooter({ text: 'Jaxdrax Studio Support', iconURL: LOGO_URL })
                 .setTimestamp();
 
             const buffer = Buffer.from(transcript, 'utf-8');
@@ -556,7 +523,6 @@ async function handleTicketDelete(interaction) {
             components: []
         });
 
-        // Supprimer le channel après 3 secondes
         setTimeout(async () => {
             await channel.delete('Ticket closed permanently').catch(console.error);
         }, 3000);
@@ -603,9 +569,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
             return;
         }
 
+        // Gère boutons, modals ET menus déroulants
         if (!interaction.isButton() && !interaction.isModalSubmit() && !interaction.isStringSelectMenu()) return;
+
         const id = interaction.customId || '';
 
+        // Tickets
         if (id === 'ticket_create') {
             await handleTicketCreate(interaction);
             return;
@@ -626,25 +595,33 @@ client.on(Events.InteractionCreate, async (interaction) => {
             await handleTicketDelete(interaction);
             return;
         }
+
+        // Info buttons
         if (id.startsWith('info_')) {
             await handleInfoButton(interaction);
             return;
         }
+
+        // Modpanel (boutons, menus déroulants, modals)
+        if (id.startsWith('mod_') || id === 'modpanel_menu') {
+            try {
+                const panel = require('./utils/modpanel');
+                if (typeof panel.handleInteraction === 'function') {
+                    await panel.handleInteraction(interaction);
+                }
+            } catch (error) {
+                console.error('[Modpanel]', error.message, error.stack);
+            }
+            return;
+        }
+
+        // Review
         if (id.startsWith('review_')) {
             try {
                 const review = require('./commands/review');
                 if (typeof review.handleInteraction === 'function') await review.handleInteraction(interaction);
             } catch (error) {
                 console.error('[Review]', error.message, error.stack);
-            }
-            return;
-        }
-        if (id.startsWith('mod_') || id === 'modpanel_menu') {
-            try {
-                const panel = require('./utils/modpanel');
-                if (typeof panel.handleInteraction === 'function') await panel.handleInteraction(interaction);
-            } catch (error) {
-                console.error('[Modpanel]', error.message, error.stack);
             }
             return;
         }
