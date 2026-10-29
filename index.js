@@ -256,16 +256,6 @@ async function generateTranscript(channel) {
 }
 
 // --- Interaction Handlers ---
-if (id.startsWith('mod_')) {
-    try {
-        const panel = require('./utils/modpanel');
-        if (typeof panel.handleInteraction === 'function') await panel.handleInteraction(interaction);
-    } catch (error) {
-        console.error('[Modpanel]', error.message, error.stack);
-    }
-    return;
-}
-
 async function handleInfoButton(interaction) {
     if (interaction.customId === 'info_view_license') {
         const embed = new EmbedBuilder()
@@ -649,7 +639,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
             }
             return;
         }
-        if (id.startsWith('mod_')) {
+        if (id.startsWith('mod_') || id === 'modpanel_menu') {
             try {
                 const panel = require('./utils/modpanel');
                 if (typeof panel.handleInteraction === 'function') await panel.handleInteraction(interaction);
