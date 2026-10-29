@@ -267,14 +267,17 @@ async function handleInteraction(interaction) {
                     resultMessage = member.user.tag + ' has been banned. Reason: ' + reason;
                 }
 
+                // Log l'action de modération
+                try {
+                    const logger = require('./logger');
+                    await logger.logModerationAction(interaction.guild, interaction.user, member.user, actionType, reason);
+                } catch (logError) {
+                    console.error('[Modpanel] Log failed:', logError.message);
+                }
+
                 return interaction.reply({ content: resultMessage, flags: MessageFlags.Ephemeral });
             } catch (error) {
                 return interaction.reply({ content: 'Action failed: ' + error.message, flags: MessageFlags.Ephemeral });
             }
-        }
-    } catch (error) {
-        console.error('[Modpanel] Interaction error:', error.message, error.stack);
-    }
-}
 
 module.exports = { handleInteraction };
