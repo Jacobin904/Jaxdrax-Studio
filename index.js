@@ -603,7 +603,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
             return;
         }
 
-        if (!interaction.isButton() && !interaction.isModalSubmit()) return;
+        if (!interaction.isButton() && !interaction.isModalSubmit() && !interaction.isStringSelectMenu()) return;
         const id = interaction.customId || '';
 
         if (id === 'ticket_create') {
