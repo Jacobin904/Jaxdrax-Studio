@@ -14,11 +14,13 @@ const { COLORS, LOGO_URL, BANNER_URL, STAFF_ROLES } = require('../config/constan
 
 async function handleInteraction(interaction) {
     const id = interaction.customId || '';
+    console.log('[Modpanel] Interaction received:', id, 'Type:', interaction.constructor.name);
 
     try {
         // ========== SELECT MENU PRINCIPAL ==========
         if (id === 'modpanel_menu' && interaction.isStringSelectMenu()) {
             const value = interaction.values[0];
+            console.log('[Modpanel] Selected value:', value);
 
             if (value === 'mod_member_info') {
                 const modal = new ModalBuilder()
@@ -34,6 +36,7 @@ async function handleInteraction(interaction) {
                     .setRequired(true);
 
                 modal.addComponents(new ActionRowBuilder().addComponents(userInput));
+                console.log('[Modpanel] Showing modal for member info');
                 return interaction.showModal(modal);
             }
 
@@ -53,6 +56,7 @@ async function handleInteraction(interaction) {
                     .setFooter({ text: 'Jaxdrax Studio Moderation', iconURL: LOGO_URL })
                     .setTimestamp();
 
+                console.log('[Modpanel] Sending guides embed');
                 return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
             }
 
@@ -81,6 +85,7 @@ async function handleInteraction(interaction) {
                     .setFooter({ text: 'Jaxdrax Studio Statistics', iconURL: LOGO_URL })
                     .setTimestamp();
 
+                console.log('[Modpanel] Sending stats embed');
                 return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
             }
 
@@ -97,6 +102,7 @@ async function handleInteraction(interaction) {
                     .setFooter({ text: 'Jaxdrax Studio Logs', iconURL: LOGO_URL })
                     .setTimestamp();
 
+                console.log('[Modpanel] Sending recent logs embed');
                 return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
             }
         }
@@ -161,7 +167,6 @@ async function handleInteraction(interaction) {
                 .setFooter({ text: 'Jaxdrax Studio Investigation | Use the selector below for actions', iconURL: LOGO_URL })
                 .setTimestamp();
 
-            // Sélecteur d'actions intégré
             const actionMenu = new StringSelectMenuBuilder()
                 .setCustomId('mod_action_menu_' + member.id)
                 .setPlaceholder('Select a moderation action for ' + member.user.username + '...')
@@ -174,12 +179,14 @@ async function handleInteraction(interaction) {
 
             const row = new ActionRowBuilder().addComponents(actionMenu);
 
+            console.log('[Modpanel] Sending member info with action menu');
             return interaction.reply({ embeds: [embed], components: [row], flags: MessageFlags.Ephemeral });
         }
 
         // ========== SELECTION D'UNE ACTION ==========
         if (id.startsWith('mod_action_menu_') && interaction.isStringSelectMenu()) {
             const value = interaction.values[0];
+            console.log('[Modpanel] Action selected:', value);
             const match = value.match(/^mod_action_(warn|timeout|kick|ban)_(\d+)$/);
 
             if (!match) {
@@ -221,6 +228,7 @@ async function handleInteraction(interaction) {
             }
 
             modal.addComponents(...rows);
+            console.log('[Modpanel] Showing action modal for', actionType);
             return interaction.showModal(modal);
         }
 
@@ -267,7 +275,6 @@ async function handleInteraction(interaction) {
                     resultMessage = member.user.tag + ' has been banned. Reason: ' + reason;
                 }
 
-                // Log l'action de modération
                 try {
                     const logger = require('./logger');
                     await logger.logModerationAction(interaction.guild, interaction.user, member.user, actionType, reason);
@@ -275,9 +282,16 @@ async function handleInteraction(interaction) {
                     console.error('[Modpanel] Log failed:', logError.message);
                 }
 
+                console.log('[Modpanel] Action executed:', actionType, 'on', member.user.tag);
                 return interaction.reply({ content: resultMessage, flags: MessageFlags.Ephemeral });
             } catch (error) {
+                console.error('[Modpanel] Action failed:', error.message);
                 return interaction.reply({ content: 'Action failed: ' + error.message, flags: MessageFlags.Ephemeral });
             }
+        }
+    } catch (error) {
+        console.error('[Modpanel] Interaction error:', error.message, error.stack);
+    }
+}
 
 module.exports = { handleInteraction };
