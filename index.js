@@ -4,24 +4,10 @@ const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const {
-    Client,
-    Collection,
-    GatewayIntentBits,
-    Partials,
-    Events,
-    REST,
-    Routes,
-    EmbedBuilder,
-    MessageFlags,
-    SlashCommandBuilder,
-    ActionRowBuilder,
-    ButtonBuilder,
-    ButtonStyle,
-    ModalBuilder,
-    TextInputBuilder,
-    TextInputStyle,
-    ChannelType,
-    PermissionFlagsBits
+    Client, Collection, GatewayIntentBits, Partials, Events, REST, Routes,
+    EmbedBuilder, MessageFlags, SlashCommandBuilder, ActionRowBuilder,
+    ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle,
+    ChannelType, PermissionFlagsBits
 } = require('discord.js');
 
 const { COLORS, LOGO_URL, BANNER_URL, STAFF_ROLES } = require('./config/constants');
@@ -47,13 +33,33 @@ app.use((req, res, next) => {
 
 let botClient = null;
 
+// DEBUG ENDPOINT - À SUPPRIMER APRÈS
+app.get('/debug', (req, res) => {
+    const htmlPath = path.join(__dirname, 'index.html');
+    const exists = fs.existsSync(htmlPath);
+    const files = fs.readdirSync(__dirname);
+    res.json({
+        status: 'online',
+        htmlPath: htmlPath,
+        htmlExists: exists,
+        currentDirectory: __dirname,
+        filesInRoot: files,
+        port: PORT
+    });
+});
+
 // Sert le fichier index.html à la racine
 app.get('/', (req, res) => {
     const htmlPath = path.join(__dirname, 'index.html');
     if (fs.existsSync(htmlPath)) {
         res.sendFile(htmlPath);
     } else {
-        res.json({ status: 'online', uptime: botClient ? Math.floor((Date.now() - botClient.readyTimestamp) / 1000) : 0 });
+        res.status(404).json({ 
+            error: 'index.html not found',
+            lookedIn: htmlPath,
+            currentDirectory: __dirname,
+            files: fs.readdirSync(__dirname)
+        });
     }
 });
 
@@ -132,7 +138,7 @@ botClient = client;
 client.commands = new Collection();
 client.legacyCommands = new Collection();
 
-// --- Registry pour les messages modifiables ---
+// --- Registry ---
 function readRegistry() {
     try {
         if (!fs.existsSync(MESSAGE_FILE)) return {};
