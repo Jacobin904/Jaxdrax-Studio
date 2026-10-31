@@ -45,11 +45,19 @@ app.use((req, res, next) => {
     next();
 });
 
-// Variable pour stocker le client une fois connecté
 let botClient = null;
 
-app.get('/', (req, res) => res.json({ status: 'online', uptime: botClient ? Math.floor((Date.now() - botClient.readyTimestamp) / 1000) : 0 }));
+// Sert le fichier index.html à la racine
+app.get('/', (req, res) => {
+    const htmlPath = path.join(__dirname, 'index.html');
+    if (fs.existsSync(htmlPath)) {
+        res.sendFile(htmlPath);
+    } else {
+        res.json({ status: 'online', uptime: botClient ? Math.floor((Date.now() - botClient.readyTimestamp) / 1000) : 0 });
+    }
+});
 
+// API Stats
 app.get('/api/stats', (req, res) => {
     if (!botClient) return res.status(503).json({ error: 'Bot not ready' });
     const guild = botClient.guilds.cache.get(GUILD_ID);
@@ -62,6 +70,7 @@ app.get('/api/stats', (req, res) => {
     });
 });
 
+// API Staff dynamique
 app.get('/api/staff', (req, res) => {
     if (!botClient) return res.status(503).json({ error: 'Bot not ready' });
     const guild = botClient.guilds.cache.get(GUILD_ID);
@@ -118,7 +127,7 @@ const client = new Client({
     partials: [Partials.GuildMember, Partials.Channel, Partials.Message, Partials.User]
 });
 
-botClient = client; // Lien avec l'API Express
+botClient = client;
 
 client.commands = new Collection();
 client.legacyCommands = new Collection();
