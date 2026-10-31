@@ -665,6 +665,51 @@ client.on(Events.MessageCreate, async (message) => {
     }
 });
 
+        // NOUVEAU : API pour récupérer l'équipe Staff dynamiquement
+        this.expressApp.get('/api/staff', (req, res) => {
+            const guild = global.bot.client.guilds.cache.get('1557003074827194458'); // Remplace par ton ID de serveur si différent
+            if (!guild) return res.status(503).json({ error: 'Serveur Discord introuvable' });
+
+            // On récupère tous les membres pour être sûr d'avoir les données à jour
+            guild.members.fetch().then(members => {
+                const staffList = [];
+                
+                // STAFF_ROLES doit être importé depuis tes constantes, ou tu peux le coder en dur ici :
+                const staffRoleNames = ['Game Direction', 'Admin', 'Moderator', 'Developer', 'Staff Team', 'Lieutenant']; // Ajoute tous tes grades staff ici
+
+                members.forEach(member => {
+                    // Trouve tous les rôles staff que ce membre possède
+                    const memberStaffRoles = member.roles.cache.filter(role => staffRoleNames.includes(role.name));
+                    
+                    if (memberStaffRoles.size > 0) {
+                        // On prend le rôle staff le plus élevé hiérarchiquement
+                        const highestRole = memberStaffRoles.sort((a, b) => b.position - a.position).first();
+                        
+                        staffList.push({
+                            username: member.user.username,
+                            displayName: member.displayName || member.user.username,
+                            avatarUrl: member.user.displayAvatarURL({ extension: 'webp', size: 1024, forceStatic: false }),
+                            profileUrl: `https://discord.com/users/${member.user.id}`,
+                            roleName: highestRole.name,
+                            roleColor: highestRole.hexColor
+                        });
+                    }
+                });
+
+                // Optionnel : Trier par position du rôle (du plus haut au plus bas)
+                staffList.sort((a, b) => {
+                    const roleA = guild.roles.cache.find(r => r.name === a.roleName)?.position || 0;
+                    const roleB = guild.roles.cache.find(r => r.name === b.roleName)?.position || 0;
+                    return roleB - roleA;
+                });
+
+                res.json({ success: true, data: staffList });
+            }).catch(err => {
+                console.error('[API] Erreur lors de la récupération des membres:', err);
+                res.status(500).json({ error: 'Échec de la récupération des données' });
+            });
+        });
+
 // --- Startup ---
 async function start() {
     try {
