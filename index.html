@@ -5,29 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jaxdrax Studio | Your Fish Life</title>
     <link rel="icon" type="image/webp" href="https://cdn.discordapp.com/icons/1557003074827194458/63327da5dd4ed7237191951cb4af3b52.webp?size=1024">
-    <meta name="description" content="Jaxdrax Studio presents Your Fish Life. Dive into a mystical aquarium building simulation on Roblox. Special Halloween Edition.">
-    <meta property="og:title" content="Jaxdrax Studio | Your Fish Life">
-    <meta property="og:description" content="Build, discover, and connect in Your Fish Life. Special Halloween Edition!">
-    <meta name="theme-color" content="#0a0a0f">
+    <meta name="description" content="Jaxdrax Studio presents Your Fish Life. The ultimate aquarium building simulation on Roblox.">
+    <meta name="theme-color" content="#0a0a0a">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800;900&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&family=Exo+2:wght@300;400;500;600;700&display=swap');
         
         :root {
-            --void: #0a0a0f;
-            --abyss: #0f0f1a;
-            --mystic: #1a0f2e;
-            --shadow: #2d1b4e;
-            --gold: #d4af37;
-            --gold-light: #f4d03f;
-            --gold-dark: #b8941f;
-            --violet: #8b5cf6;
-            --violet-dark: #6d28d9;
-            --emerald: #10b981;
-            --silver: #c0c0c0;
-            --text: #e8e8f0;
-            --text-dim: #a0a0b0;
-            --text-muted: #6b6b7b;
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #0f0f14;
+            --bg-tertiary: #15151e;
+            --bg-card: rgba(21, 21, 30, 0.6);
+            --neon-blue: #00d4ff;
+            --neon-cyan: #00fff0;
+            --neon-purple: #b829ff;
+            --neon-pink: #ff006e;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0b0;
+            --text-muted: #606070;
+            --border: rgba(0, 212, 255, 0.2);
+            --glow-blue: 0 0 20px rgba(0, 212, 255, 0.5);
+            --glow-cyan: 0 0 20px rgba(0, 255, 240, 0.5);
+            --glow-purple: 0 0 20px rgba(184, 41, 255, 0.5);
         }
         
         * {
@@ -41,33 +40,33 @@
         }
         
         body {
-            font-family: 'Inter', sans-serif;
-            background: var(--void);
-            color: var(--text);
-            line-height: 1.8;
+            font-family: 'Exo 2', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
             overflow-x: hidden;
         }
         
         ::selection {
-            background: var(--gold);
-            color: var(--void);
+            background: var(--neon-blue);
+            color: var(--bg-primary);
         }
         
         ::-webkit-scrollbar {
-            width: 8px;
+            width: 10px;
         }
         
         ::-webkit-scrollbar-track {
-            background: var(--void);
+            background: var(--bg-secondary);
         }
         
         ::-webkit-scrollbar-thumb {
-            background: linear-gradient(180deg, var(--gold), var(--violet));
-            border-radius: 4px;
+            background: linear-gradient(180deg, var(--neon-blue), var(--neon-purple));
+            border-radius: 5px;
         }
         
-        /* Constellation Canvas */
-        #constellationCanvas {
+        /* Particle Background */
+        #particlesCanvas {
             position: fixed;
             top: 0;
             left: 0;
@@ -75,19 +74,38 @@
             height: 100%;
             z-index: 0;
             pointer-events: none;
-            opacity: 0.6;
+        }
+        
+        /* Grid Background */
+        .grid-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            z-index: -1;
+            animation: gridMove 20s linear infinite;
+        }
+        
+        @keyframes gridMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50px, 50px); }
         }
         
         /* Preloader */
         .preloader {
             position: fixed;
             inset: 0;
-            background: var(--void);
+            background: var(--bg-primary);
             z-index: 9999;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: opacity 1s ease, visibility 1s ease;
+            transition: opacity 0.8s ease, visibility 0.8s ease;
         }
         
         .preloader.hidden {
@@ -99,56 +117,61 @@
             text-align: center;
         }
         
-        .preloader-symbol {
-            width: 80px;
-            height: 80px;
+        .preloader-hex {
+            width: 100px;
+            height: 100px;
             margin: 0 auto 30px;
             position: relative;
-            animation: rotate 3s linear infinite;
+            animation: rotate3d 2s linear infinite;
         }
         
-        .preloader-symbol::before {
+        .preloader-hex::before {
             content: '';
             position: absolute;
             inset: 0;
-            border: 2px solid transparent;
-            border-top-color: var(--gold);
-            border-radius: 50%;
-            animation: spin 1.5s linear infinite;
+            background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
+            clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+            animation: pulse 1.5s ease-in-out infinite;
         }
         
-        .preloader-symbol::after {
-            content: '☾';
+        .preloader-hex::after {
+            content: 'YFL';
             position: absolute;
             inset: 0;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 2rem;
-            color: var(--gold);
-            font-family: 'Cinzel', serif;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--bg-primary);
+            z-index: 1;
         }
         
-        @keyframes rotate {
-            to { transform: rotate(360deg); }
-        }
-        
-        @keyframes spin {
-            to { transform: rotate(-360deg); }
-        }
-        
-        .preloader-text {
-            font-family: 'Cinzel', serif;
-            font-size: 0.9rem;
-            letter-spacing: 4px;
-            color: var(--gold);
-            text-transform: uppercase;
-            animation: pulse 2s ease-in-out infinite;
+        @keyframes rotate3d {
+            0% { transform: rotateY(0deg); }
+            100% { transform: rotateY(360deg); }
         }
         
         @keyframes pulse {
-            0%, 100% { opacity: 0.5; }
-            50% { opacity: 1; }
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(0.95); }
+        }
+        
+        .preloader-text {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.9rem;
+            letter-spacing: 3px;
+            color: var(--neon-blue);
+            text-transform: uppercase;
+            animation: glitch 2s infinite;
+        }
+        
+        @keyframes glitch {
+            0%, 90%, 100% { transform: translate(0); }
+            91% { transform: translate(-2px, 1px); }
+            92% { transform: translate(2px, -1px); }
+            93% { transform: translate(-1px, 2px); }
         }
         
         /* Navigation */
@@ -158,16 +181,18 @@
             left: 0;
             right: 0;
             z-index: 1000;
-            padding: 25px 0;
+            padding: 20px 0;
             transition: all 0.4s ease;
             background: transparent;
+            backdrop-filter: blur(0px);
         }
         
         nav.scrolled {
-            background: rgba(10, 10, 15, 0.95);
+            background: rgba(10, 10, 10, 0.95);
             backdrop-filter: blur(20px);
             padding: 15px 0;
-            border-bottom: 1px solid rgba(212, 175, 55, 0.1);
+            border-bottom: 1px solid var(--border);
+            box-shadow: var(--glow-blue);
         }
         
         .nav-container {
@@ -184,60 +209,71 @@
             align-items: center;
             gap: 15px;
             text-decoration: none;
-            color: var(--text);
+            color: var(--text-primary);
         }
         
         .nav-logo img {
-            width: 45px;
-            height: 45px;
-            border-radius: 50%;
-            border: 2px solid var(--gold);
-            box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+            width: 50px;
+            height: 50px;
+            border-radius: 10px;
+            border: 2px solid var(--neon-blue);
+            box-shadow: var(--glow-blue);
+            transition: all 0.3s ease;
+        }
+        
+        .nav-logo:hover img {
+            transform: scale(1.1) rotate(5deg);
+            box-shadow: var(--glow-cyan);
         }
         
         .nav-logo-text {
-            font-family: 'Cinzel', serif;
-            font-size: 1.3rem;
-            font-weight: 600;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.4rem;
+            font-weight: 700;
             letter-spacing: 2px;
-            background: linear-gradient(135deg, var(--gold), var(--gold-light));
+            background: linear-gradient(135deg, var(--neon-blue), var(--neon-cyan));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            text-shadow: var(--glow-blue);
         }
         
         .nav-links {
             display: flex;
-            gap: 40px;
+            gap: 35px;
             list-style: none;
         }
         
         .nav-links a {
-            color: var(--text-dim);
+            color: var(--text-secondary);
             text-decoration: none;
-            font-size: 0.85rem;
-            font-weight: 500;
-            letter-spacing: 1.5px;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 600;
+            letter-spacing: 1px;
             text-transform: uppercase;
             transition: all 0.3s ease;
             position: relative;
+            padding: 8px 0;
         }
         
-        .nav-links a::after {
+        .nav-links a::before {
             content: '';
             position: absolute;
-            bottom: -5px;
+            bottom: 0;
             left: 0;
             width: 0;
-            height: 1px;
-            background: var(--gold);
+            height: 2px;
+            background: linear-gradient(90deg, var(--neon-blue), var(--neon-cyan));
             transition: width 0.3s ease;
+            box-shadow: var(--glow-blue);
         }
         
         .nav-links a:hover {
-            color: var(--gold);
+            color: var(--neon-blue);
+            text-shadow: var(--glow-blue);
         }
         
-        .nav-links a:hover::after {
+        .nav-links a:hover::before {
             width: 100%;
         }
         
@@ -255,106 +291,139 @@
         .hero-bg {
             position: absolute;
             inset: 0;
-            background: radial-gradient(ellipse at center, rgba(139, 92, 246, 0.1) 0%, transparent 70%);
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(0, 212, 255, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(184, 41, 255, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 40% 20%, rgba(0, 255, 240, 0.1) 0%, transparent 50%);
+            animation: bgPulse 8s ease-in-out infinite;
+        }
+        
+        @keyframes bgPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
         }
         
         .hero-content {
-            max-width: 900px;
+            max-width: 1200px;
             text-align: center;
             position: relative;
             z-index: 1;
         }
         
         .hero-badge {
-            display: inline-block;
-            padding: 10px 30px;
-            border: 1px solid var(--gold);
-            border-radius: 30px;
-            font-family: 'Cinzel', serif;
-            font-size: 0.8rem;
-            letter-spacing: 3px;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 30px;
+            border: 2px solid var(--neon-blue);
+            border-radius: 50px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 600;
+            letter-spacing: 2px;
             text-transform: uppercase;
-            color: var(--gold);
+            color: var(--neon-blue);
             margin-bottom: 40px;
-            background: rgba(212, 175, 55, 0.05);
-            animation: fadeInUp 1s ease 0.2s both;
+            background: rgba(0, 212, 255, 0.1);
+            box-shadow: var(--glow-blue);
+            animation: badgePulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes badgePulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
         }
         
         .hero-title {
-            font-family: 'Cinzel', serif;
-            font-size: 5rem;
-            font-weight: 700;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 6rem;
+            font-weight: 900;
             line-height: 1.1;
             margin-bottom: 30px;
-            background: linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 50%, var(--gold) 100%);
+            background: linear-gradient(135deg, var(--neon-blue) 0%, var(--neon-cyan) 50%, var(--neon-purple) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            animation: fadeInUp 1s ease 0.4s both;
-            text-shadow: 0 0 40px rgba(212, 175, 55, 0.3);
+            animation: titleGlow 3s ease-in-out infinite;
+            text-shadow: 0 0 40px rgba(0, 212, 255, 0.5);
+        }
+        
+        @keyframes titleGlow {
+            0%, 100% { filter: brightness(1); }
+            50% { filter: brightness(1.3); }
         }
         
         .hero-subtitle {
-            font-family: 'Cormorant Garamond', serif;
-            font-size: 1.8rem;
-            font-style: italic;
-            color: var(--text-dim);
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 2rem;
+            font-weight: 300;
+            color: var(--text-secondary);
             margin-bottom: 50px;
-            animation: fadeInUp 1s ease 0.6s both;
+            letter-spacing: 3px;
+            text-transform: uppercase;
         }
         
         .hero-buttons {
             display: flex;
             gap: 25px;
             justify-content: center;
-            animation: fadeInUp 1s ease 0.8s both;
+            flex-wrap: wrap;
         }
         
         .btn {
-            padding: 18px 45px;
+            padding: 18px 50px;
             border-radius: 50px;
             text-decoration: none;
-            font-weight: 600;
-            font-size: 0.9rem;
-            letter-spacing: 1.5px;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 700;
+            font-size: 1rem;
+            letter-spacing: 2px;
             text-transform: uppercase;
             transition: all 0.4s ease;
             position: relative;
             overflow: hidden;
+            border: 2px solid transparent;
         }
         
         .btn-primary {
-            background: linear-gradient(135deg, var(--gold), var(--gold-dark));
-            color: var(--void);
-            border: 2px solid var(--gold);
-            box-shadow: 0 10px 30px rgba(212, 175, 55, 0.3);
+            background: linear-gradient(135deg, var(--neon-blue), var(--neon-cyan));
+            color: var(--bg-primary);
+            box-shadow: var(--glow-blue);
+        }
+        
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s ease, height 0.6s ease;
+        }
+        
+        .btn-primary:hover::before {
+            width: 300px;
+            height: 300px;
         }
         
         .btn-primary:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 15px 40px rgba(212, 175, 55, 0.5);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 40px rgba(0, 212, 255, 0.6);
         }
         
         .btn-secondary {
             background: transparent;
-            color: var(--text);
-            border: 2px solid var(--text-dim);
+            color: var(--text-primary);
+            border: 2px solid var(--text-secondary);
         }
         
         .btn-secondary:hover {
-            border-color: var(--gold);
-            color: var(--gold);
-            transform: translateY(-3px);
-        }
-        
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            border-color: var(--neon-blue);
+            color: var(--neon-blue);
+            box-shadow: var(--glow-blue);
+            transform: translateY(-5px);
         }
         
         /* Section Styles */
@@ -376,67 +445,56 @@
         
         .section-label {
             display: inline-block;
-            font-family: 'Cinzel', serif;
-            font-size: 0.85rem;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 600;
             letter-spacing: 4px;
             text-transform: uppercase;
-            color: var(--gold);
+            color: var(--neon-blue);
             margin-bottom: 20px;
-            position: relative;
-            padding: 0 30px;
-        }
-        
-        .section-label::before,
-        .section-label::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            width: 20px;
-            height: 1px;
-            background: var(--gold);
-        }
-        
-        .section-label::before {
-            left: 0;
-        }
-        
-        .section-label::after {
-            right: 0;
+            padding: 10px 30px;
+            border: 1px solid var(--neon-blue);
+            border-radius: 30px;
+            background: rgba(0, 212, 255, 0.1);
+            box-shadow: var(--glow-blue);
         }
         
         .section-title {
-            font-family: 'Cinzel', serif;
+            font-family: 'Orbitron', sans-serif;
             font-size: 3.5rem;
-            font-weight: 700;
-            color: var(--text);
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--text-primary), var(--neon-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
             margin-bottom: 20px;
             line-height: 1.2;
         }
         
         .section-description {
-            font-family: 'Cormorant Garamond', serif;
+            font-family: 'Rajdhani', sans-serif;
             font-size: 1.3rem;
-            color: var(--text-dim);
+            color: var(--text-secondary);
             max-width: 700px;
             margin: 0 auto;
-            font-style: italic;
+            letter-spacing: 1px;
         }
         
         /* Features Grid */
         .features-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-            gap: 40px;
+            gap: 30px;
         }
         
         .feature-card {
-            background: rgba(26, 15, 46, 0.4);
-            border: 1px solid rgba(212, 175, 55, 0.2);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
             border-radius: 20px;
-            padding: 50px 40px;
+            padding: 40px;
             transition: all 0.5s ease;
             position: relative;
             overflow: hidden;
+            backdrop-filter: blur(10px);
         }
         
         .feature-card::before {
@@ -445,118 +503,180 @@
             top: 0;
             left: 0;
             right: 0;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, var(--gold), transparent);
+            height: 3px;
+            background: linear-gradient(90deg, var(--neon-blue), var(--neon-cyan), var(--neon-purple));
             transform: scaleX(0);
             transition: transform 0.5s ease;
         }
         
+        .feature-card::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(0, 212, 255, 0.1) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        
         .feature-card:hover {
             transform: translateY(-10px);
-            border-color: var(--gold);
-            box-shadow: 0 20px 60px rgba(212, 175, 55, 0.15);
+            border-color: var(--neon-blue);
+            box-shadow: var(--glow-blue);
         }
         
         .feature-card:hover::before {
             transform: scaleX(1);
         }
         
+        .feature-card:hover::after {
+            opacity: 1;
+        }
+        
         .feature-icon {
-            width: 70px;
-            height: 70px;
-            background: linear-gradient(135deg, var(--gold), var(--gold-dark));
-            border-radius: 50%;
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
+            border-radius: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.8rem;
-            color: var(--void);
-            margin-bottom: 30px;
-            box-shadow: 0 10px 30px rgba(212, 175, 55, 0.3);
+            font-size: 2rem;
+            color: var(--bg-primary);
+            margin-bottom: 25px;
+            box-shadow: var(--glow-blue);
+            position: relative;
+            z-index: 1;
+            transition: all 0.3s ease;
+        }
+        
+        .feature-card:hover .feature-icon {
+            transform: scale(1.1) rotate(10deg);
+            box-shadow: 0 0 40px rgba(0, 212, 255, 0.8);
         }
         
         .feature-title {
-            font-family: 'Cinzel', serif;
+            font-family: 'Orbitron', sans-serif;
             font-size: 1.5rem;
-            font-weight: 600;
-            color: var(--text);
+            font-weight: 700;
+            color: var(--text-primary);
             margin-bottom: 15px;
+            position: relative;
+            z-index: 1;
         }
         
         .feature-description {
-            color: var(--text-dim);
+            color: var(--text-secondary);
             line-height: 1.8;
+            position: relative;
+            z-index: 1;
         }
         
         /* Stats Banner */
         .stats-banner {
-            background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(212, 175, 55, 0.05));
-            border: 1px solid rgba(212, 175, 55, 0.3);
-            border-radius: 20px;
-            padding: 50px;
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.1), rgba(184, 41, 255, 0.1));
+            border: 2px solid var(--neon-blue);
+            border-radius: 30px;
+            padding: 60px;
             margin-top: 80px;
             text-align: center;
+            box-shadow: var(--glow-blue);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stats-banner::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(0, 212, 255, 0.1) 0%, transparent 70%);
+            animation: rotate 10s linear infinite;
+        }
+        
+        @keyframes rotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
         
         .stats-title {
-            font-family: 'Cinzel', serif;
-            font-size: 1.8rem;
-            color: var(--gold);
-            margin-bottom: 30px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--neon-blue);
+            margin-bottom: 40px;
+            position: relative;
+            z-index: 1;
         }
         
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 30px;
+            position: relative;
+            z-index: 1;
         }
         
         .stat-item {
             display: flex;
+            flex-direction: column;
             align-items: center;
-            justify-content: center;
             gap: 15px;
-            padding: 20px;
-            background: rgba(10, 10, 15, 0.5);
-            border-radius: 15px;
-            border: 1px solid rgba(212, 175, 55, 0.2);
+            padding: 30px;
+            background: rgba(10, 10, 10, 0.5);
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+        }
+        
+        .stat-item:hover {
+            transform: translateY(-5px);
+            border-color: var(--neon-blue);
+            box-shadow: var(--glow-blue);
         }
         
         .stat-icon {
-            font-size: 1.5rem;
-            color: var(--gold);
+            font-size: 2.5rem;
+            color: var(--neon-blue);
+            text-shadow: var(--glow-blue);
         }
         
         .stat-value {
-            font-family: 'Cinzel', serif;
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--text);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--text-primary);
         }
         
         .stat-label {
-            font-size: 0.85rem;
-            color: var(--text-dim);
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1rem;
+            color: var(--text-secondary);
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 2px;
         }
         
         /* Timeline */
         .timeline {
-            max-width: 900px;
+            max-width: 1000px;
             margin: 0 auto;
             position: relative;
-            padding-left: 60px;
+            padding-left: 80px;
         }
         
         .timeline::before {
             content: '';
             position: absolute;
-            left: 20px;
+            left: 30px;
             top: 0;
             bottom: 0;
-            width: 2px;
-            background: linear-gradient(180deg, var(--gold), var(--violet), var(--gold));
+            width: 4px;
+            background: linear-gradient(180deg, var(--neon-blue), var(--neon-purple), var(--neon-cyan));
+            box-shadow: var(--glow-blue);
         }
         
         .timeline-item {
@@ -566,88 +686,119 @@
         
         .timeline-marker {
             position: absolute;
-            left: -48px;
+            left: -58px;
             top: 10px;
-            width: 20px;
-            height: 20px;
-            background: var(--gold);
+            width: 30px;
+            height: 30px;
+            background: linear-gradient(135deg, var(--neon-blue), var(--neon-cyan));
             border-radius: 50%;
-            border: 3px solid var(--void);
-            box-shadow: 0 0 20px rgba(212, 175, 55, 0.5);
+            border: 4px solid var(--bg-primary);
+            box-shadow: var(--glow-blue);
+            animation: markerPulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes markerPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
         }
         
         .timeline-date {
-            font-family: 'Cinzel', serif;
-            font-size: 0.9rem;
-            color: var(--gold);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--neon-blue);
             letter-spacing: 2px;
             text-transform: uppercase;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
         }
         
         .timeline-title {
-            font-family: 'Cinzel', serif;
-            font-size: 1.6rem;
-            font-weight: 600;
-            color: var(--text);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--text-primary);
             margin-bottom: 15px;
         }
         
         .timeline-description {
-            color: var(--text-dim);
+            color: var(--text-secondary);
             line-height: 1.8;
+            font-size: 1.1rem;
         }
         
         /* Rules Grid */
         .rules-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-            gap: 30px;
+            gap: 25px;
         }
         
         .rule-card {
-            background: rgba(26, 15, 46, 0.3);
-            border-left: 3px solid var(--gold);
+            background: var(--bg-card);
+            border-left: 4px solid var(--neon-blue);
             border-radius: 15px;
             padding: 35px;
             transition: all 0.4s ease;
             position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+        
+        .rule-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.05), transparent);
+            opacity: 0;
+            transition: opacity 0.4s ease;
         }
         
         .rule-card:hover {
             transform: translateX(10px);
-            border-left-color: var(--violet);
-            background: rgba(26, 15, 46, 0.5);
+            border-left-color: var(--neon-purple);
+            box-shadow: var(--glow-purple);
+        }
+        
+        .rule-card:hover::before {
+            opacity: 1;
         }
         
         .rule-number {
             position: absolute;
             top: 20px;
             right: 25px;
-            font-family: 'Cinzel', serif;
-            font-size: 3rem;
-            font-weight: 700;
-            color: rgba(212, 175, 55, 0.1);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 4rem;
+            font-weight: 900;
+            color: rgba(0, 212, 255, 0.1);
         }
         
         .rule-title {
-            font-family: 'Cinzel', serif;
-            font-size: 1.3rem;
-            font-weight: 600;
-            color: var(--text);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--text-primary);
             margin-bottom: 15px;
             display: flex;
             align-items: center;
             gap: 12px;
+            position: relative;
+            z-index: 1;
         }
         
         .rule-title i {
-            color: var(--gold);
+            color: var(--neon-blue);
+            text-shadow: var(--glow-blue);
         }
         
         .rule-description {
-            color: var(--text-dim);
+            color: var(--text-secondary);
             line-height: 1.8;
+            position: relative;
+            z-index: 1;
         }
         
         /* Team Grid */
@@ -660,14 +811,15 @@
         }
         
         .team-card {
-            background: rgba(26, 15, 46, 0.4);
-            border: 1px solid rgba(212, 175, 55, 0.3);
-            border-radius: 20px;
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: 25px;
             padding: 50px 40px;
             text-align: center;
             transition: all 0.5s ease;
             position: relative;
             overflow: hidden;
+            backdrop-filter: blur(10px);
         }
         
         .team-card::before {
@@ -677,79 +829,95 @@
             left: -50%;
             width: 200%;
             height: 200%;
-            background: radial-gradient(circle, rgba(212, 175, 55, 0.1) 0%, transparent 70%);
+            background: conic-gradient(from 0deg, transparent, var(--neon-blue), transparent);
+            animation: rotate 4s linear infinite;
             opacity: 0;
             transition: opacity 0.5s ease;
         }
         
         .team-card:hover {
             transform: translateY(-15px);
-            border-color: var(--gold);
-            box-shadow: 0 25px 70px rgba(212, 175, 55, 0.2);
+            border-color: var(--neon-blue);
+            box-shadow: 0 20px 60px rgba(0, 212, 255, 0.3);
         }
         
         .team-card:hover::before {
-            opacity: 1;
+            opacity: 0.3;
         }
         
         .team-avatar {
-            width: 140px;
-            height: 140px;
+            width: 160px;
+            height: 160px;
             border-radius: 50%;
             margin: 0 auto 30px;
-            border: 3px solid var(--gold);
-            box-shadow: 0 0 30px rgba(212, 175, 55, 0.3);
+            border: 4px solid var(--neon-blue);
+            box-shadow: var(--glow-blue);
             position: relative;
             z-index: 1;
+            transition: all 0.3s ease;
+        }
+        
+        .team-card:hover .team-avatar {
+            transform: scale(1.1);
+            box-shadow: 0 0 50px rgba(0, 212, 255, 0.8);
         }
         
         .team-name {
-            font-family: 'Cinzel', serif;
-            font-size: 1.8rem;
-            font-weight: 700;
-            color: var(--text);
-            margin-bottom: 10px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--text-primary), var(--neon-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 15px;
             position: relative;
             z-index: 1;
         }
         
         .team-role {
             display: inline-block;
-            padding: 8px 25px;
-            background: linear-gradient(135deg, var(--gold), var(--gold-dark));
-            color: var(--void);
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            letter-spacing: 1px;
+            padding: 10px 30px;
+            background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
+            color: var(--bg-primary);
+            border-radius: 25px;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 700;
+            letter-spacing: 2px;
             text-transform: uppercase;
             margin-bottom: 20px;
             position: relative;
             z-index: 1;
+            box-shadow: var(--glow-blue);
         }
         
         .team-username {
-            color: var(--text-dim);
-            margin-bottom: 20px;
+            color: var(--text-secondary);
+            margin-bottom: 25px;
             position: relative;
             z-index: 1;
+            font-size: 1.1rem;
         }
         
         .team-link {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            color: var(--gold);
+            gap: 10px;
+            color: var(--neon-blue);
             text-decoration: none;
-            font-weight: 600;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 700;
+            font-size: 1.1rem;
+            letter-spacing: 1px;
             transition: all 0.3s ease;
             position: relative;
             z-index: 1;
         }
         
         .team-link:hover {
-            color: var(--gold-light);
-            gap: 12px;
+            color: var(--neon-cyan);
+            gap: 15px;
+            text-shadow: var(--glow-cyan);
         }
         
         /* FAQ */
@@ -759,16 +927,18 @@
         }
         
         .faq-item {
-            background: rgba(26, 15, 46, 0.3);
-            border: 1px solid rgba(212, 175, 55, 0.2);
-            border-radius: 15px;
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: 20px;
             margin-bottom: 20px;
             overflow: hidden;
             transition: all 0.4s ease;
+            backdrop-filter: blur(10px);
         }
         
         .faq-item:hover {
-            border-color: var(--gold);
+            border-color: var(--neon-blue);
+            box-shadow: var(--glow-blue);
         }
         
         .faq-question {
@@ -781,20 +951,21 @@
         }
         
         .faq-question:hover {
-            background: rgba(212, 175, 55, 0.05);
+            background: rgba(0, 212, 255, 0.05);
         }
         
         .faq-question-text {
-            font-family: 'Cinzel', serif;
-            font-size: 1.2rem;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.3rem;
             font-weight: 600;
-            color: var(--text);
+            color: var(--text-primary);
         }
         
         .faq-icon {
-            color: var(--gold);
-            font-size: 1.2rem;
+            color: var(--neon-blue);
+            font-size: 1.5rem;
             transition: transform 0.4s ease;
+            text-shadow: var(--glow-blue);
         }
         
         .faq-item.active .faq-icon {
@@ -806,8 +977,9 @@
             overflow: hidden;
             transition: max-height 0.5s ease, padding 0.5s ease;
             padding: 0 35px;
-            color: var(--text-dim);
+            color: var(--text-secondary);
             line-height: 1.8;
+            font-size: 1.1rem;
         }
         
         .faq-item.active .faq-answer {
@@ -817,34 +989,39 @@
         
         /* CTA Section */
         .cta-section {
-            background: radial-gradient(ellipse at center, rgba(212, 175, 55, 0.15), transparent 70%);
+            background: 
+                radial-gradient(circle at 30% 50%, rgba(0, 212, 255, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 70% 80%, rgba(184, 41, 255, 0.2) 0%, transparent 50%);
             text-align: center;
             padding: 150px 0;
+            position: relative;
+            overflow: hidden;
         }
         
         .cta-title {
-            font-family: 'Cinzel', serif;
-            font-size: 3.5rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, var(--gold), var(--gold-light));
+            font-family: 'Orbitron', sans-serif;
+            font-size: 4rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--neon-blue), var(--neon-cyan), var(--neon-purple));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             margin-bottom: 30px;
+            animation: titleGlow 3s ease-in-out infinite;
         }
         
         .cta-description {
-            font-family: 'Cormorant Garamond', serif;
-            font-size: 1.5rem;
-            color: var(--text-dim);
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1.6rem;
+            color: var(--text-secondary);
             max-width: 700px;
             margin: 0 auto 50px;
-            font-style: italic;
+            letter-spacing: 1px;
         }
         
         /* Footer */
         footer {
-            background: var(--abyss);
-            border-top: 1px solid rgba(212, 175, 55, 0.2);
+            background: var(--bg-secondary);
+            border-top: 2px solid var(--border);
             padding: 80px 0 40px;
         }
         
@@ -856,15 +1033,16 @@
         }
         
         .footer-title {
-            font-family: 'Cinzel', serif;
-            font-size: 1.3rem;
-            font-weight: 600;
-            color: var(--gold);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--neon-blue);
             margin-bottom: 25px;
+            text-shadow: var(--glow-blue);
         }
         
         .footer-text {
-            color: var(--text-dim);
+            color: var(--text-secondary);
             line-height: 1.8;
             margin-bottom: 25px;
         }
@@ -874,33 +1052,38 @@
         }
         
         .footer-links li {
-            margin-bottom: 12px;
+            margin-bottom: 15px;
         }
         
         .footer-links a {
-            color: var(--text-dim);
+            color: var(--text-secondary);
             text-decoration: none;
             transition: all 0.3s ease;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 600;
+            letter-spacing: 1px;
         }
         
         .footer-links a:hover {
-            color: var(--gold);
+            color: var(--neon-blue);
             padding-left: 10px;
+            text-shadow: var(--glow-blue);
         }
         
         .footer-links a i {
-            color: var(--gold);
+            color: var(--neon-blue);
         }
         
         .copyright {
             text-align: center;
             padding-top: 40px;
-            border-top: 1px solid rgba(212, 175, 55, 0.1);
+            border-top: 1px solid var(--border);
             color: var(--text-muted);
-            font-size: 0.9rem;
+            font-family: 'Rajdhani', sans-serif;
+            letter-spacing: 1px;
         }
         
         /* Responsive */
@@ -929,6 +1112,10 @@
             .rules-grid {
                 grid-template-columns: 1fr;
             }
+            
+            .timeline {
+                padding-left: 60px;
+            }
         }
         
         /* Animations */
@@ -945,12 +1132,13 @@
     </style>
 </head>
 <body>
-    <canvas id="constellationCanvas"></canvas>
+    <div class="grid-bg"></div>
+    <canvas id="particlesCanvas"></canvas>
     
     <div class="preloader" id="preloader">
         <div class="preloader-content">
-            <div class="preloader-symbol"></div>
-            <div class="preloader-text">Entering the Mystic Realm</div>
+            <div class="preloader-hex"></div>
+            <div class="preloader-text">Initializing System</div>
         </div>
     </div>
     
@@ -958,7 +1146,7 @@
         <div class="nav-container">
             <a href="#" class="nav-logo">
                 <img src="https://cdn.discordapp.com/icons/1557003074827194458/63327da5dd4ed7237191951cb4af3b52.webp?size=1024" alt="Logo">
-                <span class="nav-logo-text">Jaxdrax Studio</span>
+                <span class="nav-logo-text">JAXDRAX STUDIO</span>
             </a>
             <ul class="nav-links">
                 <li><a href="#home">Home</a></li>
@@ -974,14 +1162,14 @@
     <section class="hero" id="home">
         <div class="hero-bg"></div>
         <div class="hero-content">
-            <div class="hero-badge">☾ Halloween 2026 Edition ☾</div>
-            <h1 class="hero-title">Your Fish Life</h1>
-            <p class="hero-subtitle">Where mysteries swim beneath the surface</p>
+            <div class="hero-badge">⚡ Halloween 2026 Edition ⚡</div>
+            <h1 class="hero-title">YOUR FISH LIFE</h1>
+            <p class="hero-subtitle">The Ultimate Aquarium Experience</p>
             <div class="hero-buttons">
                 <a href="https://discord.gg/cmKCK7JJBa" class="btn btn-primary" target="_blank">
-                    <i class="fab fa-discord"></i> Join the Coven
+                    <i class="fab fa-discord"></i> Join the Community
                 </a>
-                <a href="#game" class="btn btn-secondary">Discover More</a>
+                <a href="#game" class="btn btn-secondary">Explore More</a>
             </div>
         </div>
     </section>
@@ -989,113 +1177,107 @@
     <section id="game">
         <div class="container">
             <div class="section-header fade-in">
-                <div class="section-label">The Experience</div>
-                <h2 class="section-title">A Mystical Aquatic Journey</h2>
-                <p class="section-description">Dive into an enchanting world where every fish holds a secret and every aquarium tells a story</p>
+                <div class="section-label">Experience</div>
+                <h2 class="section-title">Next-Gen Aquarium Building</h2>
+                <p class="section-description">Dive into a revolutionary simulation where every fish tells a story and every aquarium is a masterpiece</p>
             </div>
             
             <div class="features-grid">
                 <div class="feature-card fade-in">
                     <div class="feature-icon"><i class="fas fa-water"></i></div>
-                    <h3 class="feature-title">Aquarium Building</h3>
-                    <p class="feature-description">Craft your perfect underwater sanctuary with hundreds of mystical decorations, ethereal filters, and enchanting lighting options.</p>
+                    <h3 class="feature-title">Advanced Building System</h3>
+                    <p class="feature-description">Create stunning aquariums with hundreds of decorations, advanced filters, and dynamic lighting systems. Your creativity is the only limit.</p>
                 </div>
                 
                 <div class="feature-card fade-in">
                     <div class="feature-icon"><i class="fas fa-fish-fins"></i></div>
                     <h3 class="feature-title">Species Discovery</h3>
-                    <p class="feature-description">Uncover over 100 unique fish species, each with mysterious behaviors and arcane requirements. Master the genetics-based breeding system.</p>
+                    <p class="feature-description">Uncover over 100 unique fish species with realistic behaviors. Master the genetics-based breeding system to create rare hybrids.</p>
                 </div>
                 
                 <div class="feature-card fade-in">
                     <div class="feature-icon"><i class="fas fa-calendar-check"></i></div>
                     <h3 class="feature-title">Community Events</h3>
-                    <p class="feature-description">Join regular gatherings organized by our coven: tournaments, seasonal quests, and mystical celebrations under the moonlight.</p>
+                    <p class="feature-description">Join regular tournaments, seasonal quests, and community celebrations. Compete with players worldwide and earn exclusive rewards.</p>
                 </div>
                 
                 <div class="feature-card fade-in">
                     <div class="feature-icon"><i class="fas fa-shield-halved"></i></div>
-                    <h3 class="feature-title">Sacred Protection</h3>
-                    <p class="feature-description">A sanctuary guarded by attentive protectors. Clear rules, fairly enforced to preserve the harmony of our mystical community.</p>
+                    <h3 class="feature-title">Professional Moderation</h3>
+                    <p class="feature-description">A safe and welcoming environment guaranteed by our dedicated team. Clear rules, fair enforcement, and 24/7 support.</p>
                 </div>
                 
                 <div class="feature-card fade-in">
                     <div class="feature-icon"><i class="fas fa-ticket"></i></div>
-                    <h3 class="feature-title">Mystic Support</h3>
-                    <p class="feature-description">Structured guidance with dedicated categories. Your voice shapes the future of our enchanted realm.</p>
+                    <h3 class="feature-title">Advanced Support</h3>
+                    <p class="feature-description">Structured ticket system with dedicated categories. Your feedback directly shapes the future of the game.</p>
                 </div>
                 
                 <div class="feature-card fade-in">
                     <div class="feature-icon"><i class="fas fa-code"></i></div>
                     <h3 class="feature-title">Active Development</h3>
-                    <p class="feature-description">The realm evolves weekly with new mysteries and wonders. The Beta phase approaches with exclusive revelations.</p>
+                    <p class="feature-description">Weekly updates with new features and improvements. Beta phase coming soon with exclusive content for early supporters.</p>
                 </div>
             </div>
             
             <div class="stats-banner fade-in">
-                <h3 class="stats-title">Realm Status</h3>
+                <h3 class="stats-title">Live Server Status</h3>
                 <div class="stats-grid">
                     <div class="stat-item">
                         <i class="fas fa-users stat-icon"></i>
-                        <div>
-                            <div class="stat-value" id="statMembers">Loading...</div>
-                            <div class="stat-label">Members</div>
-                        </div>
+                        <div class="stat-value" id="statMembers">--</div>
+                        <div class="stat-label">Members</div>
                     </div>
                     <div class="stat-item">
-                        <i class="fas fa-circle stat-icon" style="color: var(--emerald)"></i>
-                        <div>
-                            <div class="stat-value" id="statOnline">Loading...</div>
-                            <div class="stat-label">Online</div>
-                        </div>
+                        <i class="fas fa-circle stat-icon" style="color: var(--neon-cyan)"></i>
+                        <div class="stat-value" id="statOnline">--</div>
+                        <div class="stat-label">Online</div>
                     </div>
                     <div class="stat-item">
                         <i class="fas fa-bolt stat-icon"></i>
-                        <div>
-                            <div class="stat-value" id="statPing">Loading...</div>
-                            <div class="stat-label">ms Ping</div>
-                        </div>
+                        <div class="stat-value" id="statPing">--</div>
+                        <div class="stat-label">ms Ping</div>
                     </div>
                 </div>
             </div>
         </div>
     </section>
     
-    <section id="journey" style="background: linear-gradient(180deg, var(--void), var(--abyss));">
+    <section id="journey" style="background: linear-gradient(180deg, var(--bg-primary), var(--bg-secondary));">
         <div class="container">
             <div class="section-header fade-in">
-                <div class="section-label">Our Chronicle</div>
-                <h2 class="section-title">The Journey Unfolds</h2>
-                <p class="section-description">From the first incantation to today: the moments that shaped our mystical community</p>
+                <div class="section-label">Chronicle</div>
+                <h2 class="section-title">Our Development Journey</h2>
+                <p class="section-description">From concept to reality: the milestones that defined our path</p>
             </div>
             
             <div class="timeline">
                 <div class="timeline-item fade-in">
                     <div class="timeline-marker"></div>
                     <div class="timeline-date">2024</div>
-                    <h3 class="timeline-title">Foundation of Jaxdrax Studio</h3>
-                    <p class="timeline-description">The coven was formed with a singular vision: to create an immersive, mystical, and high-quality Roblox experience unlike any other.</p>
+                    <h3 class="timeline-title">Studio Foundation</h3>
+                    <p class="timeline-description">Jaxdrax Studio was established with a bold vision: to create the most immersive and high-quality aquarium simulation on Roblox.</p>
                 </div>
                 
                 <div class="timeline-item fade-in">
                     <div class="timeline-marker"></div>
                     <div class="timeline-date">Early 2026</div>
-                    <h3 class="timeline-title">The Spell Begins</h3>
-                    <p class="timeline-description">Active development of Your Fish Life commenced. Core systems materialized: building mechanics, inventory enchantments, and the first fish codex.</p>
+                    <h3 class="timeline-title">Development Begins</h3>
+                    <p class="timeline-description">Active development of Your Fish Life commenced. Core systems implemented: building mechanics, inventory management, and the first fish database.</p>
                 </div>
                 
                 <div class="timeline-item fade-in">
                     <div class="timeline-marker"></div>
                     <div class="timeline-date">2026</div>
-                    <h3 class="timeline-title">Community Awakening</h3>
-                    <p class="timeline-description">The Discord sanctuary opened its gates. Implementation of the ticket system, mystical moderation channels, and recruitment of the first Beta Testers.</p>
+                    <h3 class="timeline-title">Community Launch</h3>
+                    <p class="timeline-description">Official Discord server opening. Implementation of advanced ticket system, moderation channels, and recruitment of the first Beta Testers.</p>
                 </div>
                 
                 <div class="timeline-item fade-in">
                     <div class="timeline-marker"></div>
                     <div class="timeline-date">October 31, 2026</div>
-                    <h3 class="timeline-title">Halloween Transformation</h3>
-                    <p class="timeline-description">The website undergoes a complete metamorphosis with an elegant mystical redesign, integrating real-time realm statistics.</p>
+                    <h3 class="timeline-title">Website Evolution</h3>
+                    <p class="timeline-description">Complete website redesign with cutting-edge technology, real-time statistics integration, and a futuristic gaming aesthetic.</p>
                 </div>
             </div>
         </div>
@@ -1104,395 +1286,20 @@
     <section id="rules">
         <div class="container">
             <div class="section-header fade-in">
-                <div class="section-label">Sacred Laws</div>
-                <h2 class="section-title">The Coven's Code</h2>
-                <p class="section-description">To maintain harmony and mystery within our sanctuary. Transgression shall be met with consequence.</p>
+                <div class="section-label">Guidelines</div>
+                <h2 class="section-title">Community Code of Conduct</h2>
+                <p class="section-description">To maintain a professional and welcoming environment for all members</p>
             </div>
             
             <div class="rules-grid">
                 <div class="rule-card fade-in">
-                    <span class="rule-number">I</span>
-                    <h3 class="rule-title"><i class="fas fa-handshake"></i> Reverence</h3>
-                    <p class="rule-description">Respect is the foundation of our coven. Any form of disrespect, harassment, or discrimination shall result in immediate banishment from the sanctuary.</p>
+                    <span class="rule-number">01</span>
+                    <h3 class="rule-title"><i class="fas fa-handshake"></i> Respect</h3>
+                    <p class="rule-description">Respect is fundamental. Any form of disrespect, harassment, or discrimination will result in immediate sanctions up to permanent banishment.</p>
                 </div>
                 
                 <div class="rule-card fade-in">
-                    <span class="rule-number">II</span>
-                    <h3 class="rule-title"><i class="fas fa-ban"></i> No Proclamations</h3>
-                    <p class="rule-description">External advertisements require prior blessing from the High Council. Unauthorized proclamations shall be met with swift exile.</p>
-                </div>
-                
-                <div class="rule-card fade-in">
-                    <span class="rule-number">III</span>
-                    <h3 class="rule-title"><i class="fas fa-user-shield"></i> Honor the Council</h3>
-                    <p class="rule-description">The Council's decrees are final. Disputes must be raised through proper channels with reverence. Disrespect toward Council members invites severe consequence.</p>
-                </div>
-                
-                <div class="rule-card fade-in">
-                    <span class="rule-number">IV</span>
-                    <h3 class="rule-title"><i class="fas fa-lock"></i> Sacred Secrets</h3>
-                    <p class="rule-description">Never reveal personal mysteries (yours or others). The sanctuary's security is paramount. No request for private information shall be tolerated.</p>
-                </div>
-                
-                <div class="rule-card fade-in">
-                    <span class="rule-number">V</span>
-                    <h3 class="rule-title"><i class="fas fa-comment-slash"></i> Pure Speech</h3>
-                    <p class="rule-description">No hateful, discriminatory, or vulgar incantations. Our sanctuary is a space of harmony: keep your words clean and respectful.</p>
-                </div>
-                
-                <div class="rule-card fade-in">
-                    <span class="rule-number">VI</span>
-                    <h3 class="rule-title"><i class="fas fa-triangle-exclamation"></i> False Accusations</h3>
-                    <p class="rule-description">False reports and manipulation of the sacred judgment system shall be met with sanctions. The system exists to protect, not to be exploited.</p>
-                </div>
-                
-                <div class="rule-card fade-in">
-                    <span class="rule-number">VII</span>
-                    <h3 class="rule-title"><i class="fas fa-user-secret"></i> One Soul, One Form</h3>
-                    <p class="rule-description">One account per soul. Alternate forms, vague identities, or evasion attempts shall be detected and banished. Return after banishment = eternal blacklist.</p>
-                </div>
-                
-                <div class="rule-card fade-in">
-                    <span class="rule-number">VIII</span>
-                    <h3 class="rule-title"><i class="fas fa-at"></i> Summoning Restraint</h3>
-                    <p class="rule-description">Spamming mentions (souls, Council, roles) is forbidden. A summoning must be justified and non-abusive. Spam results in immediate silencing.</p>
-                </div>
-                
-                <div class="rule-card fade-in">
-                    <span class="rule-number">IX</span>
-                    <h3 class="rule-title"><i class="fas fa-microphone"></i> Voice Sanctum</h3>
-                    <p class="rule-description">No screaming, abusive soundboards, or disturbing noises. Clean voice, reasonable volume. Respect others' speech, no aggressive interruptions.</p>
-                </div>
-                
-                <div class="rule-card fade-in">
-                    <span class="rule-number">X</span>
-                    <h3 class="rule-title"><i class="fas fa-image"></i> Shared Visions</h3>
-                    <p class="rule-description">Images, visions, and messages must remain pure. No shocking, gore, NSFW, illegal, or dangerous content. Links must be secure and verified.</p>
-                </div>
-                
-                <div class="rule-card fade-in">
-                    <span class="rule-number">XI</span>
-                    <h3 class="rule-title"><i class="fas fa-gamepad"></i> Forbidden Arts</h3>
-                    <p class="rule-description">Any discussion, promotion, or use of exploits, cheats, or glitches in the Roblox realm shall result in permanent banishment and report to the realm's architects.</p>
-                </div>
-                
-                <div class="rule-card fade-in">
-                    <span class="rule-number">XII</span>
-                    <h3 class="rule-title"><i class="fas fa-gavel"></i> Consequences</h3>
-                    <p class="rule-description">Sanctions may include: warning, silencing, exile, banishment, eternal blacklist. Severity depends on behavior and repetition. The Council reserves the right to act.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-    
-    <section id="team" style="background: linear-gradient(180deg, var(--abyss), var(--void));">
-        <div class="container">
-            <div class="section-header fade-in">
-                <div class="section-label">The High Council</div>
-                <h2 class="section-title">Guardians of the Realm</h2>
-                <p class="section-description">A dedicated coven to offer you the finest mystical experience</p>
-            </div>
-            
-            <div class="team-grid" id="teamGrid">
-                <p style="text-align:center; color: var(--text-dim); width: 100%;">Summoning council members...</p>
-            </div>
-        </div>
-    </section>
-    
-    <section id="faq">
-        <div class="container">
-            <div class="section-header fade-in">
-                <div class="section-label">Mystic Knowledge</div>
-                <h2 class="section-title">Frequently Asked Questions</h2>
-                <p class="section-description">Answers to the mysteries that trouble your mind</p>
-            </div>
-            
-            <div class="faq-container">
-                <div class="faq-item fade-in">
-                    <div class="faq-question">
-                        <span class="faq-question-text">How to join the Council?</span>
-                        <i class="fas fa-chevron-down faq-icon"></i>
-                    </div>
-                    <div class="faq-answer">
-                        You must be active, respectful, and devoted to the community. When recruitment opens, a sacred form appears in the dedicated channel. The High Council examines your attitude, maturity, and reliability before choosing you.
-                    </div>
-                </div>
-                
-                <div class="faq-item fade-in">
-                    <div class="faq-question">
-                        <span class="faq-question-text">How to report a realm anomaly?</span>
-                        <i class="fas fa-chevron-down faq-icon"></i>
-                    </div>
-                    <div class="faq-answer">
-                        Use the bug-reports channel or open a ticket in the "Bug Report" category. Provide as much detail as possible (visions, steps to reproduce the anomaly) to help our architects.
-                    </div>
-                </div>
-                
-                <div class="faq-item fade-in">
-                    <div class="faq-question">
-                        <span class="faq-question-text">How to obtain a special role or Beta Tester status?</span>
-                        <i class="fas fa-chevron-down faq-icon"></i>
-                    </div>
-                    <div class="faq-answer">
-                        Special roles are granted based on your activity, devotion, and behavior. The Beta Tester role is usually awarded during open testing phases or to reward the most devoted community members.
-                    </div>
-                </div>
-                
-                <div class="faq-item fade-in">
-                    <div class="faq-question">
-                        <span class="faq-question-text">How to report an issue with a Council member?</span>
-                        <i class="fas fa-chevron-down faq-icon"></i>
-                    </div>
-                    <div class="faq-answer">
-                        Open a ticket in the "Appeal" or "Council Issue" category. Explain calmly what occurred and add proof if you have any (visions, logs). The situation will be reviewed by the High Council.
-                    </div>
-                </div>
-                
-                <div class="faq-item fade-in">
-                    <div class="faq-question">
-                        <span class="faq-question-text">Is the realm accessible on mobile and console?</span>
-                        <i class="fas fa-chevron-down faq-icon"></i>
-                    </div>
-                    <div class="faq-answer">
-                        Yes, Your Fish Life is crafted to be fully compatible on PC, Mobile, and Console (Xbox, PlayStation), so every soul can enjoy the experience, regardless of their vessel.
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-    
-    <section class="cta-section">
-        <div class="container">
-            <div class="fade-in">
-                <h2 class="cta-title">Join the Mystical Adventure</h2>
-                <p class="cta-description">A unique atmosphere, a welcoming coven, a realm that evolves with its members. This Halloween, the only treat we offer is friendship and rare fish.</p>
-                <a href="https://discord.gg/cmKCK7JJBa" class="btn btn-primary" target="_blank">
-                    <i class="fab fa-discord"></i> Enter the Sanctuary
-                </a>
-            </div>
-        </div>
-    </section>
-    
-    <footer>
-        <div class="container">
-            <div class="footer-grid">
-                <div>
-                    <h4 class="footer-title">About</h4>
-                    <p class="footer-text">Jaxdrax Studio is a coven dedicated to creating immersive and high-quality Roblox experiences, with Your Fish Life as its flagship mystical realm.</p>
-                </div>
-                
-                <div>
-                    <h4 class="footer-title">Navigation</h4>
-                    <ul class="footer-links">
-                        <li><a href="#home"><i class="fas fa-home"></i> Home</a></li>
-                        <li><a href="#game"><i class="fas fa-info-circle"></i> The Game</a></li>
-                        <li><a href="#journey"><i class="fas fa-clock-rotate-left"></i> Journey</a></li>
-                        <li><a href="#rules"><i class="fas fa-scroll"></i> Rules</a></li>
-                        <li><a href="#team"><i class="fas fa-users"></i> Team</a></li>
-                        <li><a href="#faq"><i class="fas fa-question-circle"></i> FAQ</a></li>
-                    </ul>
-                </div>
-                
-                <div>
-                    <h4 class="footer-title">Resources</h4>
-                    <ul class="footer-links">
-                        <li><a href="https://discord.com/channels/1557003074827194458/1557003546833060004" target="_blank"><i class="fas fa-scroll"></i> Sacred Laws</a></li>
-                        <li><a href="https://discord.com/channels/1557003074827194458/1557003075682697289" target="_blank"><i class="fas fa-bullhorn"></i> Proclamations</a></li>
-                        <li><a href="https://discord.com/channels/1557003074827194458/1561478786774474823" target="_blank"><i class="fas fa-ticket"></i> Open a Ticket</a></li>
-                    </ul>
-                </div>
-            </div>
-            
-            <div class="copyright">
-                <p>© 2026 Jaxdrax Studio. All rights reserved. | Halloween Edition crafted with <i class="fas fa-heart" style="color: var(--gold)"></i> for the mystical community.</p>
-            </div>
-        </div>
-    </footer>
-    
-    <script>
-        // Constellation Canvas
-        const canvas = document.getElementById('constellationCanvas');
-        const ctx = canvas.getContext('2d');
-        let stars = [];
-        let connections = [];
-        
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            initStars();
-        }
-        
-        function initStars() {
-            stars = [];
-            const numStars = Math.min(150, Math.floor(window.innerWidth / 10));
-            
-            for (let i = 0; i < numStars; i++) {
-                stars.push({
-                    x: Math.random() * canvas.width,
-                    y: Math.random() * canvas.height,
-                    radius: Math.random() * 1.5 + 0.5,
-                    vx: (Math.random() - 0.5) * 0.3,
-                    vy: (Math.random() - 0.5) * 0.3,
-                    opacity: Math.random() * 0.5 + 0.5
-                });
-            }
-        }
-        
-        function drawStars() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // Draw connections
-            for (let i = 0; i < stars.length; i++) {
-                for (let j = i + 1; j < stars.length; j++) {
-                    const dx = stars[i].x - stars[j].x;
-                    const dy = stars[i].y - stars[j].y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    
-                    if (distance < 150) {
-                        ctx.beginPath();
-                        ctx.moveTo(stars[i].x, stars[i].y);
-                        ctx.lineTo(stars[j].x, stars[j].y);
-                        ctx.strokeStyle = `rgba(212, 175, 55, ${0.15 * (1 - distance / 150)})`;
-                        ctx.lineWidth = 0.5;
-                        ctx.stroke();
-                    }
-                }
-            }
-            
-            // Draw stars
-            stars.forEach(star => {
-                ctx.beginPath();
-                ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
-                ctx.fillStyle = `rgba(212, 175, 55, ${star.opacity})`;
-                ctx.fill();
-                
-                // Update position
-                star.x += star.vx;
-                star.y += star.vy;
-                
-                // Wrap around edges
-                if (star.x < 0) star.x = canvas.width;
-                if (star.x > canvas.width) star.x = 0;
-                if (star.y < 0) star.y = canvas.height;
-                if (star.y > canvas.height) star.y = 0;
-            });
-            
-            requestAnimationFrame(drawStars);
-        }
-        
-        resizeCanvas();
-        window.addEventListener('resize', resizeCanvas);
-        drawStars();
-        
-        // Preloader
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                document.getElementById('preloader').classList.add('hidden');
-            }, 1500);
-        });
-        
-        // Navbar scroll effect
-        window.addEventListener('scroll', () => {
-            const navbar = document.getElementById('navbar');
-            if (window.scrollY > 100) {
-                navbar.classList.add('scrolled');
-            } else {
-                navbar.classList.remove('scrolled');
-            }
-        });
-        
-        // Fade in animations
-        const observerOptions = {
-            threshold: 0.1,
-            rootMargin: '0px 0px -50px 0px'
-        };
-        
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add('visible');
-                }
-            });
-        }, observerOptions);
-        
-        document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
-        
-        // FAQ Accordion
-        document.querySelectorAll('.faq-question').forEach(question => {
-            question.addEventListener('click', () => {
-                const item = question.parentElement;
-                const isActive = item.classList.contains('active');
-                
-                document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('active'));
-                
-                if (!isActive) {
-                    item.classList.add('active');
-                }
-            });
-        });
-        
-        // Smooth scroll
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
-                e.preventDefault();
-                const target = document.querySelector(this.getAttribute('href'));
-                if (target) {
-                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-            });
-        });
-        
-        // API Stats
-        async function fetchStats() {
-            try {
-                const response = await fetch('/api/stats');
-                if (!response.ok) throw new Error('API not available');
-                const data = await response.json();
-                document.getElementById('statMembers').textContent = data.members || 'N/A';
-                document.getElementById('statOnline').textContent = data.online || 'N/A';
-                document.getElementById('statPing').textContent = data.ping || 'N/A';
-            } catch (error) {
-                document.getElementById('statMembers').textContent = '15+';
-                document.getElementById('statOnline').textContent = 'Active';
-                document.getElementById('statPing').textContent = '20';
-            }
-        }
-        fetchStats();
-        setInterval(fetchStats, 60000);
-        
-        // Dynamic Staff
-        async function loadStaff() {
-            const grid = document.getElementById('teamGrid');
-            try {
-                const response = await fetch('/api/staff');
-                const result = await response.json();
-                
-                if (result.success && result.data.length > 0) {
-                    grid.innerHTML = '';
-                    result.data.forEach(member => {
-                        const card = document.createElement('div');
-                        card.className = 'team-card fade-in';
-                        card.innerHTML = `
-                            <img src="${member.avatarUrl}" alt="${member.username}" class="team-avatar">
-                            <h3 class="team-name">${member.displayName}</h3>
-                            <span class="team-role">${member.roleName}</span>
-                            <p class="team-username">@${member.username}</p>
-                            <a href="${member.profileUrl}" target="_blank" rel="noopener noreferrer" class="team-link">
-                                <i class="fab fa-discord"></i> View Profile <i class="fas fa-arrow-right"></i>
-                            </a>
-                        `;
-                        grid.appendChild(card);
-                        observer.observe(card);
-                    });
-                } else {
-                    grid.innerHTML = '<p style="text-align:center; color: var(--text-dim); width: 100%;">No council members found.</p>';
-                }
-            } catch (error) {
-                console.error('Failed to load staff:', error);
-                grid.innerHTML = '<p style="text-align:center; color: var(--text-dim); width: 100%;">Failed to summon council members.</p>';
-            }
-        }
-        document.addEventListener('DOMContentLoaded', loadStaff);
-    </script>
-</body>
-</html>
+                    <span class="rule-number">02</span>
+                    <h3 class="rule-title"><i class="fas fa-ban"></i> No Advertising</h3>
+                    <p class="rule-description">External advertisements require prior authorization. Unauthorized promotions will be met with swift consequences.</p>
+                </
