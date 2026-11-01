@@ -35,19 +35,19 @@ module.exports = {
                 { 
                     name: 'Core Features', 
                     value: 
-                        '• **Aquarium Building:** Complete customization system with decorations, filters, and lighting options.\n' +
-                        '• **Fish Discovery:** Over 100 unique species to discover, each with unique behaviors and requirements.\n' +
-                        '• **Breeding System:** Advanced genetics-based breeding mechanics.\n' +
-                        '• **Community Events:** Regular seasonal events with exclusive content.', 
+                        '• Aquarium Building: Complete customization system with decorations, filters, and lighting options.\n' +
+                        '• Fish Discovery: Over 100 unique species to discover, each with unique behaviors and requirements.\n' +
+                        '• Breeding System: Advanced genetics-based breeding mechanics.\n' +
+                        '• Community Events: Regular seasonal events with exclusive content.', 
                     inline: false 
                 },
                 {
                     name: 'Server Statistics',
                     value: 
-                        `**Members:** ${guild.memberCount}\n` +
-                        `**Roles:** ${guild.roles.cache.size}\n` +
-                        `**Channels:** ${guild.channels.cache.size}\n` +
-                        `**Server Created:** ${createdAt}`,
+                        `Members: ${guild.memberCount}\n` +
+                        `Roles: ${guild.roles.cache.size}\n` +
+                        `Channels: ${guild.channels.cache.size}\n` +
+                        `Server Created: ${createdAt}`,
                     inline: false
                 }
             )
