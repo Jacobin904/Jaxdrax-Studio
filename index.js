@@ -53,42 +53,79 @@ app.get('/api/stats', (req, res) => {
     });
 });
 
-app.get('/api/staff', (req, res) => {
+// CACHE ROBUSTE pour éviter les rate limits
+let staffCache = null;
+let staffCacheTime = 0;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+app.get('/api/staff', async (req, res) => {
     if (!botClient) return res.status(503).json({ error: 'Bot not ready' });
     const guild = botClient.guilds.cache.get(GUILD_ID);
     if (!guild) return res.status(404).json({ error: 'Server not found' });
 
-    guild.members.fetch().then(members => {
-        const staffList = [];
-        const staffRoleNames = ['Game Direction', 'Admin', 'Moderator', 'Developer', 'Staff Team', 'Lieutenant'];
+    const now = Date.now();
+    
+    // Retourner le cache si valide
+    if (staffCache && now - staffCacheTime < CACHE_DURATION) {
+        return res.json({ success: true, data: staffCache, cached: true });
+    }
 
-        members.forEach(member => {
-            const memberStaffRoles = member.roles.cache.filter(role => staffRoleNames.includes(role.name));
-            if (memberStaffRoles.size > 0) {
-                const highestRole = memberStaffRoles.sort((a, b) => b.position - a.position).first();
-                staffList.push({
-                    username: member.user.username,
-                    displayName: member.displayName || member.user.username,
-                    avatarUrl: member.user.displayAvatarURL({ extension: 'webp', size: 1024, forceStatic: false }),
-                    profileUrl: `https://discord.com/users/${member.user.id}`,
-                    roleName: highestRole.name,
-                    roleColor: highestRole.hexColor
-                });
-            }
-        });
+    try {
+        // Utiliser le cache local si possible
+        if (guild.members.cache.size > guild.memberCount * 0.8) {
+            staffCache = processStaffMembers(guild.members.cache, guild);
+            staffCacheTime = now;
+            return res.json({ success: true, data: staffCache, cached: false });
+        }
 
-        staffList.sort((a, b) => {
-            const roleA = guild.roles.cache.find(r => r.name === a.roleName)?.position || 0;
-            const roleB = guild.roles.cache.find(r => r.name === b.roleName)?.position || 0;
-            return roleB - roleA;
-        });
+        // Sinon fetch avec timeout
+        const members = await Promise.race([
+            guild.members.fetch(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Fetch timeout')), 10000))
+        ]);
 
-        res.json({ success: true, data: staffList });
-    }).catch(err => {
-        console.error('[API] Error fetching members:', err);
-        res.status(500).json({ error: 'Failed to fetch data' });
-    });
+        staffCache = processStaffMembers(members, guild);
+        staffCacheTime = now;
+        res.json({ success: true, data: staffCache, cached: false });
+    } catch (error) {
+        console.error('[API] Fetch failed:', error.message);
+        // Fallback sur le cache existant ou cache vide
+        if (staffCache) {
+            res.json({ success: true, data: staffCache, cached: true, error: 'Using stale cache' });
+        } else {
+            res.json({ success: true, data: [], cached: false, error: 'No cache available' });
+        }
+    }
 });
+
+function processStaffMembers(members, guild) {
+    const staffList = [];
+    const staffRoleNames = ['Game Direction', 'Admin', 'Moderator', 'Developer', 'Staff Team', 'Lieutenant'];
+
+    members.forEach(member => {
+        if (!member || !member.user) return;
+        const memberStaffRoles = member.roles.cache.filter(role => staffRoleNames.includes(role.name));
+        if (memberStaffRoles.size > 0) {
+            const highestRole = memberStaffRoles.sort((a, b) => b.position - a.position).first();
+            staffList.push({
+                username: member.user.username,
+                displayName: member.displayName || member.user.username,
+                avatarUrl: member.user.displayAvatarURL({ extension: 'webp', size: 1024, forceStatic: false }),
+                profileUrl: `https://discord.com/users/${member.user.id}`,
+                roleName: highestRole.name,
+                roleColor: highestRole.hexColor
+            });
+        }
+    });
+
+    staffList.sort((a, b) => {
+        const roleA = guild.roles.cache.find(r => r.name === a.roleName)?.position || 0;
+        const roleB = guild.roles.cache.find(r => r.name === b.roleName)?.position || 0;
+        return roleB - roleA;
+    });
+
+    return staffList;
+}
 
 app.listen(PORT, '0.0.0.0', () => console.log(`[API] Website available at http://localhost:${PORT}`));
 
@@ -248,7 +285,7 @@ function loadEvents() {
 loadEvents();
 
 // ==========================================
-// 3. INTERACTION HANDLERS (NO EMOJIS, HIGHLY DETAILED)
+// 3. INTERACTION HANDLERS
 // ==========================================
 async function handleInfoButton(interaction) {
     if (interaction.customId === 'info_view_license') {
@@ -261,36 +298,12 @@ async function handleInfoButton(interaction) {
                 'Accessing or playing the game does not grant ownership of any asset.'
             )
             .addFields(
-                {
-                    name: 'Copyright And Ownership',
-                    value: 'Copyright (c) 2026 Jaxdrax Studio. All rights reserved.\nAll code, scripts, models, textures, audio, artwork, branding and game design remain the property of Jaxdrax Studio.',
-                    inline: false
-                },
-                {
-                    name: 'Permitted Use',
-                    value: 'Personal, non-commercial play of Your Fish Life.\nSharing the official game link and inviting other players.\nPosting screenshots or clips for personal, non-monetized community use.',
-                    inline: false
-                },
-                {
-                    name: 'Prohibited Use',
-                    value: 'Redistributing, reselling or sublicensing any game asset.\nReverse engineering, decompiling or extracting game files.\nReuploading the game or claiming it as your own work.\nCommercial use, monetized reposts or paid access without a written agreement.',
-                    inline: false
-                },
-                {
-                    name: 'Intellectual Property',
-                    value: 'All trademarks, logos, game mechanics, artwork, music, and other creative elements are protected under international copyright law. Any unauthorized use will be pursued to the fullest extent of the law.',
-                    inline: false
-                },
-                {
-                    name: 'Enforcement',
-                    value: 'Violations may result in a DMCA takedown, a permanent server ban and, where applicable, legal action. Exceptions require written approval from Jaxdrax Studio.',
-                    inline: false
-                },
-                {
-                    name: 'Licensing Inquiries',
-                    value: 'For partnership, press or commercial licensing requests, open a support ticket and select the Licensing category.',
-                    inline: false
-                }
+                { name: 'Copyright And Ownership', value: 'Copyright (c) 2026 Jaxdrax Studio. All rights reserved.\nAll code, scripts, models, textures, audio, artwork, branding and game design remain the property of Jaxdrax Studio.', inline: false },
+                { name: 'Permitted Use', value: 'Personal, non-commercial play of Your Fish Life.\nSharing the official game link and inviting other players.\nPosting screenshots or clips for personal, non-monetized community use.', inline: false },
+                { name: 'Prohibited Use', value: 'Redistributing, reselling or sublicensing any game asset.\nReverse engineering, decompiling or extracting game files.\nReuploading the game or claiming it as your own work.\nCommercial use, monetized reposts or paid access without a written agreement.', inline: false },
+                { name: 'Intellectual Property', value: 'All trademarks, logos, game mechanics, artwork, music, and other creative elements are protected under international copyright law. Any unauthorized use will be pursued to the fullest extent of the law.', inline: false },
+                { name: 'Enforcement', value: 'Violations may result in a DMCA takedown, a permanent server ban and, where applicable, legal action. Exceptions require written approval from Jaxdrax Studio.', inline: false },
+                { name: 'Licensing Inquiries', value: 'For partnership, press or commercial licensing requests, open a support ticket and select the Licensing category.', inline: false }
             )
             .setImage(BANNER_URL)
             .setFooter({ text: 'Jaxdrax Studio | Effective 2026', iconURL: LOGO_URL })
@@ -308,26 +321,10 @@ async function handleInfoButton(interaction) {
                 'reviewed by the right person. Please read the guide below before opening one.'
             )
             .addFields(
-                {
-                    name: 'Before Opening A Ticket',
-                    value: '1. Check the rules and information channels.\n2. Search previous tickets if you have opened one before.\n3. Gather your user ID, a description and any screenshots.\n4. Open one ticket per issue instead of spamming several.',
-                    inline: false
-                },
-                {
-                    name: 'Ticket Categories',
-                    value: 'Account: login problems, verification, linked accounts.\nBug Report: crashes, broken features, unexpected behavior.\nPlayer Report: harassment, exploits, rule violations.\nAppeal: review of a warning, timeout, kick or ban.\nLicensing: permission requests and partnerships.',
-                    inline: false
-                },
-                {
-                    name: 'What To Include',
-                    value: 'Your Discord user ID, your Roblox username, a clear description of the issue, steps to reproduce it if it is a bug, and the date it happened. Never include passwords or payment information.',
-                    inline: false
-                },
-                {
-                    name: 'Response And Conduct',
-                    value: 'Typical first response: 2 to 4 hours.\nAppeals are reviewed within 48 hours.\nKeep the conversation in the ticket. Do not ping staff repeatedly or open duplicate tickets to speed things up.',
-                    inline: false
-                }
+                { name: 'Before Opening A Ticket', value: '1. Check the rules and information channels.\n2. Search previous tickets if you have opened one before.\n3. Gather your user ID, a description and any screenshots.\n4. Open one ticket per issue instead of spamming several.', inline: false },
+                { name: 'Ticket Categories', value: 'Account: login problems, verification, linked accounts.\nBug Report: crashes, broken features, unexpected behavior.\nPlayer Report: harassment, exploits, rule violations.\nAppeal: review of a warning, timeout, kick or ban.\nLicensing: permission requests and partnerships.', inline: false },
+                { name: 'What To Include', value: 'Your Discord user ID, your Roblox username, a clear description of the issue, steps to reproduce it if it is a bug, and the date it happened. Never include passwords or payment information.', inline: false },
+                { name: 'Response And Conduct', value: 'Typical first response: 2 to 4 hours.\nAppeals are reviewed within 48 hours.\nKeep the conversation in the ticket. Do not ping staff repeatedly or open duplicate tickets to speed things up.', inline: false }
             )
             .setImage(BANNER_URL)
             .setFooter({ text: 'Jaxdrax Studio Support Team', iconURL: LOGO_URL })
