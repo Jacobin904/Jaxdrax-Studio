@@ -393,7 +393,7 @@ async function handleTicketModal(interaction) {
         const closeButton = new ButtonBuilder().setCustomId('ticket_close').setLabel('Close Ticket').setStyle(ButtonStyle.Danger);
         await ticketChannel.send({ content: interaction.user.toString() + ' | Staff will be with you shortly.', embeds: [ticketEmbed], components: [new ActionRowBuilder().addComponents(closeButton)] });
 
-        return interaction.reply({ content: 'Your ticket has been created: ' + ticketChannel, flags: MessageFlags.Ephemeral });
+        return interaction.reply({ content: 'Your ticket has been created: <#' + ticketChannel.id + '>', flags: MessageFlags.Ephemeral });
     } catch (error) {
         console.error('[Ticket] Create error:', error.message);
         return interaction.reply({ content: 'An error occurred while creating your ticket.', flags: MessageFlags.Ephemeral });
