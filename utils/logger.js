@@ -520,6 +520,19 @@ async function logInfractionRevoked(guild, moderator, infraction, revokeReason) 
     await sendLog(guild, embed);
 }
 
+async function logRobloxVerification(guild, user, robloxUsername) {
+    const embed = new EmbedBuilder()
+        .setColor('#2ecc71')
+        .setTitle('Roblox Account Verified')
+        .addFields(
+            { name: 'Discord User', value: user.tag + '\n' + user.id, inline: true },
+            { name: 'Roblox Username', value: robloxUsername, inline: true }
+        )
+        .setFooter({ text: 'Jaxdrax Studio Audit', iconURL: LOGO_URL })
+        .setTimestamp();
+    await sendLog(guild, embed);
+}
+
 module.exports = {
     logMemberJoin,
     logMemberLeave,
