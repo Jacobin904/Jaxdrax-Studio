@@ -23,7 +23,7 @@ module.exports = {
             const embed = new EmbedBuilder()
                 .setColor(COLORS.red)
                 .setTitle('No Linked Account')
-                .setDescription('Your Discord account is not linked to any Roblox account.')
+                .setDescription('Your Discord account is not linked to any Roblox account.\n\nUse `/verify-roblox` to link your account.')
                 .setImage(BANNER_URL)
                 .setFooter({ text: 'Jaxdrax Studio Verification', iconURL: LOGO_URL })
                 .setTimestamp();
@@ -39,7 +39,8 @@ module.exports = {
                 .setTitle('Account Unlinked')
                 .setDescription(
                     'Your Roblox account has been successfully unlinked.\n\n' +
-                    '**Previous Roblox Username:** ' + existing.robloxUsername + '\n\n' +
+                    '**Previous Roblox Username:** ' + existing.robloxUsername + '\n' +
+                    '**Previous Roblox ID:** ' + existing.robloxId + '\n\n' +
                     'You can use `/verify-roblox` to link a new account.'
                 )
                 .setImage(BANNER_URL)
