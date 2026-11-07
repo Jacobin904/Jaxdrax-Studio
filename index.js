@@ -66,28 +66,20 @@ function loadStaffCacheFromDisk() {
     try {
         if (!fs.existsSync(STAFF_CACHE_FILE)) return null;
         const data = JSON.parse(fs.readFileSync(STAFF_CACHE_FILE, 'utf8'));
-        if (data && data.timestamp && data.list) {
-            return data;
-        }
-    } catch (error) {
-        // Cache corrompu, on ignore
-    }
+        if (data && data.timestamp && data.list) return data;
+    } catch (error) {}
     return null;
 }
 
 function saveStaffCacheToDisk(list) {
     try {
         if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-        fs.writeFileSync(STAFF_CACHE_FILE, JSON.stringify({
-            timestamp: Date.now(),
-            list: list
-        }, null, 2), 'utf8');
+        fs.writeFileSync(STAFF_CACHE_FILE, JSON.stringify({ timestamp: Date.now(), list: list }, null, 2), 'utf8');
     } catch (error) {
         console.error('[Cache] Save failed:', error.message);
     }
 }
 
-// Charger le cache au démarrage
 const diskCache = loadStaffCacheFromDisk();
 if (diskCache) {
     staffCache = diskCache.list;
@@ -131,24 +123,18 @@ app.get('/api/staff', async (req, res) => {
 
     const now = Date.now();
 
-    // 1. Retourner le cache si valide (mémoire OU disque)
     if (staffCache && now - staffCacheTime < CACHE_DURATION) {
         return res.json({ success: true, data: staffCache, cached: true, age: Math.floor((now - staffCacheTime) / 1000) });
     }
 
-    // 2. Si un fetch est déjà en cours, retourner le cache existant (même périmé)
     if (staffFetchInProgress) {
-        if (staffCache) {
-            return res.json({ success: true, data: staffCache, cached: true, stale: true });
-        }
+        if (staffCache) return res.json({ success: true, data: staffCache, cached: true, stale: true });
         return res.status(503).json({ error: 'Fetch in progress, try again later' });
     }
 
-    // 3. Lancer le fetch avec verrouillage
     staffFetchInProgress = true;
 
     try {
-        // Utiliser le cache local si suffisamment rempli
         if (guild.members.cache.size > guild.memberCount * 0.8) {
             staffCache = processStaffMembers(guild.members.cache, guild);
             staffCacheTime = now;
@@ -157,7 +143,6 @@ app.get('/api/staff', async (req, res) => {
             return res.json({ success: true, data: staffCache, cached: false, source: 'memory' });
         }
 
-        // Sinon fetch avec timeout
         const members = await Promise.race([
             guild.members.fetch(),
             new Promise((_, reject) => setTimeout(() => reject(new Error('Fetch timeout')), 15000))
@@ -169,7 +154,6 @@ app.get('/api/staff', async (req, res) => {
         res.json({ success: true, data: staffCache, cached: false, source: 'fetch' });
     } catch (error) {
         console.error('[API] Fetch failed:', error.message);
-        // Fallback sur le cache existant
         if (staffCache) {
             res.json({ success: true, data: staffCache, cached: true, stale: true, error: error.message });
         } else {
@@ -198,7 +182,6 @@ botClient = client;
 client.commands = new Collection();
 client.legacyCommands = new Collection();
 
-// Arrêt propre quand Canner redéploie
 process.on('SIGTERM', () => {
     console.log('[Shutdown] SIGTERM received, closing client...');
     client.destroy();
