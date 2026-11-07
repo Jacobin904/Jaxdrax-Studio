@@ -18,6 +18,7 @@ const PORT = process.env.PORT || 3308;
 const PANEL_COMMANDS = new Set(['info', 'rules']);
 const DATA_DIR = path.join(__dirname, 'data');
 const MESSAGE_FILE = path.join(DATA_DIR, 'command-messages.json');
+const STAFF_CACHE_FILE = path.join(DATA_DIR, 'staff-cache.json');
 
 // ==========================================
 // 1. EXPRESS API SETUP
@@ -53,50 +54,46 @@ app.get('/api/stats', (req, res) => {
     });
 });
 
-// CACHE ROBUSTE pour éviter les rate limits
+// ==========================================
+// CACHE STAFF PERSISTANT (sur disque)
+// ==========================================
 let staffCache = null;
 let staffCacheTime = 0;
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+let staffFetchInProgress = false;
+const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
 
-app.get('/api/staff', async (req, res) => {
-    if (!botClient) return res.status(503).json({ error: 'Bot not ready' });
-    const guild = botClient.guilds.cache.get(GUILD_ID);
-    if (!guild) return res.status(404).json({ error: 'Server not found' });
-
-    const now = Date.now();
-    
-    // Retourner le cache si valide
-    if (staffCache && now - staffCacheTime < CACHE_DURATION) {
-        return res.json({ success: true, data: staffCache, cached: true });
-    }
-
+function loadStaffCacheFromDisk() {
     try {
-        // Utiliser le cache local si possible
-        if (guild.members.cache.size > guild.memberCount * 0.8) {
-            staffCache = processStaffMembers(guild.members.cache, guild);
-            staffCacheTime = now;
-            return res.json({ success: true, data: staffCache, cached: false });
+        if (!fs.existsSync(STAFF_CACHE_FILE)) return null;
+        const data = JSON.parse(fs.readFileSync(STAFF_CACHE_FILE, 'utf8'));
+        if (data && data.timestamp && data.list) {
+            return data;
         }
-
-        // Sinon fetch avec timeout
-        const members = await Promise.race([
-            guild.members.fetch(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Fetch timeout')), 10000))
-        ]);
-
-        staffCache = processStaffMembers(members, guild);
-        staffCacheTime = now;
-        res.json({ success: true, data: staffCache, cached: false });
     } catch (error) {
-        console.error('[API] Fetch failed:', error.message);
-        // Fallback sur le cache existant ou cache vide
-        if (staffCache) {
-            res.json({ success: true, data: staffCache, cached: true, error: 'Using stale cache' });
-        } else {
-            res.json({ success: true, data: [], cached: false, error: 'No cache available' });
-        }
+        // Cache corrompu, on ignore
     }
-});
+    return null;
+}
+
+function saveStaffCacheToDisk(list) {
+    try {
+        if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+        fs.writeFileSync(STAFF_CACHE_FILE, JSON.stringify({
+            timestamp: Date.now(),
+            list: list
+        }, null, 2), 'utf8');
+    } catch (error) {
+        console.error('[Cache] Save failed:', error.message);
+    }
+}
+
+// Charger le cache au démarrage
+const diskCache = loadStaffCacheFromDisk();
+if (diskCache) {
+    staffCache = diskCache.list;
+    staffCacheTime = diskCache.timestamp;
+    console.log('[Cache] Staff cache loaded from disk (' + staffCache.length + ' members)');
+}
 
 function processStaffMembers(members, guild) {
     const staffList = [];
@@ -127,6 +124,62 @@ function processStaffMembers(members, guild) {
     return staffList;
 }
 
+app.get('/api/staff', async (req, res) => {
+    if (!botClient) return res.status(503).json({ error: 'Bot not ready' });
+    const guild = botClient.guilds.cache.get(GUILD_ID);
+    if (!guild) return res.status(404).json({ error: 'Server not found' });
+
+    const now = Date.now();
+
+    // 1. Retourner le cache si valide (mémoire OU disque)
+    if (staffCache && now - staffCacheTime < CACHE_DURATION) {
+        return res.json({ success: true, data: staffCache, cached: true, age: Math.floor((now - staffCacheTime) / 1000) });
+    }
+
+    // 2. Si un fetch est déjà en cours, retourner le cache existant (même périmé)
+    if (staffFetchInProgress) {
+        if (staffCache) {
+            return res.json({ success: true, data: staffCache, cached: true, stale: true });
+        }
+        return res.status(503).json({ error: 'Fetch in progress, try again later' });
+    }
+
+    // 3. Lancer le fetch avec verrouillage
+    staffFetchInProgress = true;
+
+    try {
+        // Utiliser le cache local si suffisamment rempli
+        if (guild.members.cache.size > guild.memberCount * 0.8) {
+            staffCache = processStaffMembers(guild.members.cache, guild);
+            staffCacheTime = now;
+            saveStaffCacheToDisk(staffCache);
+            staffFetchInProgress = false;
+            return res.json({ success: true, data: staffCache, cached: false, source: 'memory' });
+        }
+
+        // Sinon fetch avec timeout
+        const members = await Promise.race([
+            guild.members.fetch(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Fetch timeout')), 15000))
+        ]);
+
+        staffCache = processStaffMembers(members, guild);
+        staffCacheTime = now;
+        saveStaffCacheToDisk(staffCache);
+        res.json({ success: true, data: staffCache, cached: false, source: 'fetch' });
+    } catch (error) {
+        console.error('[API] Fetch failed:', error.message);
+        // Fallback sur le cache existant
+        if (staffCache) {
+            res.json({ success: true, data: staffCache, cached: true, stale: true, error: error.message });
+        } else {
+            res.json({ success: true, data: [], cached: false, error: error.message });
+        }
+    } finally {
+        staffFetchInProgress = false;
+    }
+});
+
 app.listen(PORT, '0.0.0.0', () => console.log(`[API] Website available at http://localhost:${PORT}`));
 
 // ==========================================
@@ -144,6 +197,19 @@ const client = new Client({
 botClient = client;
 client.commands = new Collection();
 client.legacyCommands = new Collection();
+
+// Arrêt propre quand Canner redéploie
+process.on('SIGTERM', () => {
+    console.log('[Shutdown] SIGTERM received, closing client...');
+    client.destroy();
+    process.exit(0);
+});
+
+process.on('SIGINT', () => {
+    console.log('[Shutdown] SIGINT received, closing client...');
+    client.destroy();
+    process.exit(0);
+});
 
 function readRegistry() {
     try {
