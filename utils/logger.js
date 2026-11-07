@@ -533,6 +533,20 @@ async function logRobloxVerification(guild, user, robloxUsername) {
     await sendLog(guild, embed);
 }
 
+async function logRobloxVerification(guild, user, robloxUsername, robloxId) {
+    const embed = new EmbedBuilder()
+        .setColor('#4ECDC4')
+        .setTitle('Roblox Account Verified')
+        .addFields(
+            { name: 'Discord User', value: user.tag + '\n' + user.id, inline: true },
+            { name: 'Roblox Username', value: robloxUsername, inline: true },
+            { name: 'Roblox ID', value: robloxId, inline: true }
+        )
+        .setFooter({ text: 'Jaxdrax Studio Audit', iconURL: LOGO_URL })
+        .setTimestamp();
+    await sendLog(guild, embed);
+}
+
 module.exports = {
     logMemberJoin,
     logMemberLeave,
