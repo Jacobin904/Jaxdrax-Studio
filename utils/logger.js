@@ -23,7 +23,9 @@ function truncate(text, max = 1000) {
     return str.length > max ? str.substring(0, max - 20) + '\n... (truncated)' : str;
 }
 
-// ========== MEMBRES ==========
+// ==========================================
+// MEMBERS
+// ==========================================
 async function logMemberJoin(member) {
     const embed = new EmbedBuilder()
         .setColor('#2ecc71')
@@ -58,7 +60,9 @@ async function logMemberLeave(member) {
     await sendLog(member.guild, embed);
 }
 
-// ========== MESSAGES ==========
+// ==========================================
+// MESSAGES
+// ==========================================
 async function logMessageDelete(message) {
     if (!message.guild || message.author?.bot) return;
     const embed = new EmbedBuilder()
@@ -110,7 +114,9 @@ async function logMessageBulkDelete(messages, channel) {
     await sendLog(channel.guild, embed);
 }
 
-// ========== VOIX ==========
+// ==========================================
+// VOICE
+// ==========================================
 async function logVoiceState(oldState, newState) {
     const member = newState.member || oldState.member;
     if (!member || member.user.bot) return;
@@ -161,7 +167,9 @@ async function logVoiceState(oldState, newState) {
     await sendLog(guild, embed);
 }
 
-// ========== BANS ==========
+// ==========================================
+// BANS
+// ==========================================
 async function logBanAdd(guild, ban) {
     const embed = new EmbedBuilder()
         .setColor('#c0392b')
@@ -191,7 +199,9 @@ async function logBanRemove(guild, ban) {
     await sendLog(guild, embed);
 }
 
-// ========== SALONS ==========
+// ==========================================
+// CHANNELS
+// ==========================================
 async function logChannelCreate(channel) {
     if (!channel.guild) return;
     const embed = new EmbedBuilder()
@@ -247,7 +257,9 @@ async function logChannelUpdate(oldChannel, newChannel) {
     await sendLog(newChannel.guild, embed);
 }
 
-// ========== ROLES ==========
+// ==========================================
+// ROLES
+// ==========================================
 async function logRoleCreate(role) {
     const embed = new EmbedBuilder()
         .setColor('#2ecc71')
@@ -305,7 +317,9 @@ async function logRoleUpdate(oldRole, newRole) {
     await sendLog(newRole.guild, embed);
 }
 
-// ========== MEMBER UPDATE (roles, nick, avatar, timeout) ==========
+// ==========================================
+// MEMBER UPDATE (roles, nick, avatar, timeout)
+// ==========================================
 async function logMemberUpdate(oldMember, newMember) {
     if (newMember.user.bot) return;
     const changes = [];
@@ -355,7 +369,9 @@ async function logMemberUpdate(oldMember, newMember) {
     await sendLog(newMember.guild, embed);
 }
 
-// ========== GUILD UPDATE ==========
+// ==========================================
+// GUILD UPDATE
+// ==========================================
 async function logGuildUpdate(oldGuild, newGuild) {
     const changes = [];
     if (oldGuild.name !== newGuild.name) changes.push('Name: ' + oldGuild.name + ' → ' + newGuild.name);
@@ -379,7 +395,9 @@ async function logGuildUpdate(oldGuild, newGuild) {
     await sendLog(newGuild, embed);
 }
 
-// ========== EMOJIS & STICKERS ==========
+// ==========================================
+// EMOJIS & STICKERS
+// ==========================================
 async function logEmojiCreate(emoji) {
     const embed = new EmbedBuilder()
         .setColor('#2ecc71')
@@ -424,7 +442,9 @@ async function logEmojiUpdate(oldEmoji, newEmoji) {
     await sendLog(newEmoji.guild, embed);
 }
 
-// ========== INVITATIONS ==========
+// ==========================================
+// INVITATIONS
+// ==========================================
 async function logInviteCreate(invite) {
     if (!invite.guild) return;
     const embed = new EmbedBuilder()
@@ -456,7 +476,9 @@ async function logInviteDelete(invite) {
     await sendLog(invite.guild, embed);
 }
 
-// ========== THREADS ==========
+// ==========================================
+// THREADS
+// ==========================================
 async function logThreadCreate(thread) {
     const embed = new EmbedBuilder()
         .setColor('#2ecc71')
@@ -484,7 +506,9 @@ async function logThreadDelete(thread) {
     await sendLog(thread.guild, embed);
 }
 
-// ========== MODERATION ACTIONS (pour modpanel) ==========
+// ==========================================
+// MODERATION ACTIONS
+// ==========================================
 async function logModerationAction(guild, moderator, target, action, reason) {
     const embed = new EmbedBuilder()
         .setColor(COLORS.darkRed)
@@ -500,6 +524,9 @@ async function logModerationAction(guild, moderator, target, action, reason) {
     await sendLog(guild, embed);
 }
 
+// ==========================================
+// INFRACTION REVOKED
+// ==========================================
 async function logInfractionRevoked(guild, moderator, infraction, revokeReason) {
     const user = await guild.client.users.fetch(infraction.userId).catch(() => null);
     const userName = user ? user.tag : 'Unknown User';
@@ -520,19 +547,9 @@ async function logInfractionRevoked(guild, moderator, infraction, revokeReason) 
     await sendLog(guild, embed);
 }
 
-async function logRobloxVerification(guild, user, robloxUsername) {
-    const embed = new EmbedBuilder()
-        .setColor('#2ecc71')
-        .setTitle('Roblox Account Verified')
-        .addFields(
-            { name: 'Discord User', value: user.tag + '\n' + user.id, inline: true },
-            { name: 'Roblox Username', value: robloxUsername, inline: true }
-        )
-        .setFooter({ text: 'Jaxdrax Studio Audit', iconURL: LOGO_URL })
-        .setTimestamp();
-    await sendLog(guild, embed);
-}
-
+// ==========================================
+// ROBLOX VERIFICATION
+// ==========================================
 async function logRobloxVerification(guild, user, robloxUsername, robloxId) {
     const embed = new EmbedBuilder()
         .setColor('#4ECDC4')
@@ -547,6 +564,9 @@ async function logRobloxVerification(guild, user, robloxUsername, robloxId) {
     await sendLog(guild, embed);
 }
 
+// ==========================================
+// EXPORTS
+// ==========================================
 module.exports = {
     logMemberJoin,
     logMemberLeave,
