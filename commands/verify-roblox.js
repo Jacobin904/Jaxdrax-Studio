@@ -10,19 +10,12 @@ const roblox = require('../utils/roblox');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('verify-roblox')
-        .setDescription('Link your Roblox account to your Discord account')
-        .addStringOption(option =>
-            option
-                .setName('username')
-                .setDescription('Your Roblox username')
-                .setRequired(true)
-        ),
+        .setDescription('Link your Roblox account to your Discord account'),
 
     name: 'verify-roblox',
     description: 'Link your Roblox account to your Discord account',
 
     async execute(interaction) {
-        const robloxUsername = interaction.options.getString('username');
         const discordId = interaction.user.id;
 
         // Vérifier si déjà lié
@@ -33,7 +26,9 @@ module.exports = {
                 .setTitle('Account Already Linked')
                 .setDescription(
                     'Your Discord account is already linked to a Roblox account.\n\n' +
-                    '**Current Roblox Username:** ' + existing.robloxUsername + '\n' +
+                    '**Roblox Username:** ' + existing.robloxUsername + '\n' +
+                    '**Roblox ID:** ' + existing.robloxId + '\n' +
+                    '**Display Name:** ' + existing.displayName + '\n' +
                     '**Linked Since:** <t:' + Math.floor(new Date(existing.linkedAt).getTime() / 1000) + ':R>\n\n' +
                     'If you want to change your Roblox account, use `/unlink-roblox` first.'
                 )
@@ -44,40 +39,40 @@ module.exports = {
             return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
 
-        // Lier le compte (vérification manuelle pour l'instant)
-        // Dans le futur, on pourrait utiliser l'API Roblox ou Bloxlink pour une vérification automatique
-        const success = roblox.linkRobloxAccount(discordId, robloxUsername, null);
+        try {
+            // Générer le lien OAuth
+            const authUrl = roblox.generateAuthUrl(discordId);
 
-        if (success) {
             const embed = new EmbedBuilder()
-                .setColor(COLORS.green || '#2ecc71')
-                .setTitle('Roblox Account Linked')
+                .setColor(COLORS.dark)
+                .setTitle('Roblox Account Verification')
                 .setDescription(
-                    'Your Roblox account has been successfully linked to your Discord account.\n\n' +
-                    '**Roblox Username:** ' + robloxUsername + '\n' +
-                    '**Discord User:** ' + interaction.user.tag + '\n\n' +
-                    'You can now use `/modpanel` to view your linked Roblox information.'
+                    'Click the button below to verify your Roblox account.\n\n' +
+                    'You will be redirected to Roblox to authorize the connection. ' +
+                    'Your Roblox username, ID, and display name will be linked to your Discord account.'
+                )
+                .addFields(
+                    { name: 'What happens next?', value: '1. Click the button below\n2. Log in to your Roblox account\n3. Authorize the connection\n4. You will be redirected back here\n5. Your account will be automatically verified', inline: false }
                 )
                 .setImage(BANNER_URL)
                 .setFooter({ text: 'Jaxdrax Studio Verification', iconURL: LOGO_URL })
                 .setTimestamp();
 
-            await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+            const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setLabel('Verify with Roblox')
+                    .setURL(authUrl)
+                    .setStyle(ButtonStyle.Link)
+            );
 
-            // Logger dans dev-logs
-            try {
-                const logger = require('../utils/logger');
-                if (typeof logger.logRobloxVerification === 'function') {
-                    await logger.logRobloxVerification(interaction.guild, interaction.user, robloxUsername);
-                }
-            } catch (error) {
-                console.error('[Verify] Log failed:', error.message);
-            }
-        } else {
+            await interaction.reply({ embeds: [embed], components: [row], flags: MessageFlags.Ephemeral });
+        } catch (error) {
+            console.error('[Verify] Error:', error.message);
             const embed = new EmbedBuilder()
                 .setColor(COLORS.red)
-                .setTitle('Verification Failed')
-                .setDescription('An error occurred while linking your Roblox account. Please try again later.')
+                .setTitle('Verification Unavailable')
+                .setDescription('Roblox verification is not configured yet. Please contact the server administrator.')
                 .setImage(BANNER_URL)
                 .setFooter({ text: 'Jaxdrax Studio Verification', iconURL: LOGO_URL })
                 .setTimestamp();
