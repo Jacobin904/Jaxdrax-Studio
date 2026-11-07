@@ -558,5 +558,6 @@ module.exports = {
     logThreadCreate,
     logThreadDelete,
     logModerationAction,
-    logInfractionRevoked
+    logInfractionRevoked,
+    logRobloxVerification
 };
