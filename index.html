@@ -910,7 +910,7 @@ async function crew(){
     box.innerHTML='<div class="crew-empty">Roster unavailable — API offline</div>';
   }
 }
-crew();setInterval(crew,120000);
+crew();setInterval(crew, 600000);   // 10 minutes au lieu de 2 minutes
 
 document.querySelectorAll('.band').forEach(b=>{
   const mq=b.querySelector('.mq');
