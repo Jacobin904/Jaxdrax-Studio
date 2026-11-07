@@ -52,6 +52,11 @@ async function buildMemberPanel(interaction, member) {
         : 'None';
 
     const counts = infractions.getInfractionCount(member.id);
+        // Récupérer les infos Roblox
+    const robloxData = roblox.getRobloxAccount(member.id);
+    const robloxInfo = robloxData && robloxData.verified
+        ? `**Username:** ${robloxData.robloxUsername}\n**ID:** ${robloxData.robloxId}\n**Display Name:** ${robloxData.displayName}\n**Linked:** ${relative(robloxData.linkedAt)}`
+        : '**Status:** Not verified\nUse `/verify-roblox` to link';
     
     // Récupérer les infos Roblox
     const robloxData = roblox.getRobloxAccount(member.id);
