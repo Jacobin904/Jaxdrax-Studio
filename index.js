@@ -167,6 +167,86 @@ app.get('/api/staff', async (req, res) => {
 app.listen(PORT, '0.0.0.0', () => console.log(`[API] Website available at http://localhost:${PORT}`));
 
 // ==========================================
+// ROBLOX OAUTH CALLBACK
+// ==========================================
+app.get('/api/roblox/callback', async (req, res) => {
+    const { code, state } = req.query;
+
+    if (!code || !state) {
+        return res.send(`
+            <html>
+                <head><title>Verification Failed</title></head>
+                <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #0A0A0A; color: #F2EFE9;">
+                    <h1 style="color: #D4A574;">Verification Failed</h1>
+                    <p>Missing authorization code or state.</p>
+                    <p>You can close this window.</p>
+                </body>
+            </html>
+        `);
+    }
+
+    try {
+        const roblox = require('./utils/roblox');
+        
+        // Échanger le code contre un token
+        const { accessToken, discordId } = await roblox.exchangeCodeForToken(code, state);
+        
+        // Récupérer les infos Roblox
+        const userInfo = await roblox.getRobloxUserInfo(accessToken);
+        
+        // Lier le compte
+        const success = roblox.linkRobloxAccount(discordId, userInfo);
+        
+        if (success) {
+            // Logger la vérification
+            try {
+                const logger = require('./utils/logger');
+                if (typeof logger.logRobloxVerification === 'function') {
+                    const guild = botClient.guilds.cache.get(GUILD_ID);
+                    const user = await botClient.users.fetch(discordId);
+                    if (guild && user) {
+                        await logger.logRobloxVerification(guild, user, userInfo.robloxUsername, userInfo.robloxId);
+                    }
+                }
+            } catch (logError) {
+                console.error('[Roblox] Log failed:', logError.message);
+            }
+
+            return res.send(`
+                <html>
+                    <head><title>Verification Successful</title></head>
+                    <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #0A0A0A; color: #F2EFE9;">
+                        <h1 style="color: #4ECDC4;">Verification Successful!</h1>
+                        <p>Your Roblox account has been linked to your Discord account.</p>
+                        <div style="background: #161616; padding: 20px; border-radius: 10px; margin: 20px auto; max-width: 400px;">
+                            <p><strong>Roblox Username:</strong> ${userInfo.robloxUsername}</p>
+                            <p><strong>Roblox ID:</strong> ${userInfo.robloxId}</p>
+                            <p><strong>Display Name:</strong> ${userInfo.displayName}</p>
+                        </div>
+                        <p>You can close this window and return to Discord.</p>
+                    </body>
+                </html>
+            `);
+        } else {
+            throw new Error('Failed to link account');
+        }
+    } catch (error) {
+        console.error('[Roblox Callback] Error:', error.message);
+        return res.send(`
+            <html>
+                <head><title>Verification Failed</title></head>
+                <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #0A0A0A; color: #F2EFE9;">
+                    <h1 style="color: #FF5555;">Verification Failed</h1>
+                    <p>An error occurred while verifying your account.</p>
+                    <p style="color: #A89BB0;">${error.message}</p>
+                    <p>You can close this window and try again.</p>
+                </body>
+            </html>
+        `);
+    }
+});
+
+// ==========================================
 // 2. DISCORD CLIENT SETUP
 // ==========================================
 const client = new Client({
