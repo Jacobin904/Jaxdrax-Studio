@@ -13,6 +13,7 @@ const {
 
 const { COLORS, LOGO_URL, BANNER_URL, STAFF_ROLES } = require('../config/constants');
 const infractions = require('./infractions');
+const roblox = require('./roblox');
 
 function clamp(text, max) {
     const value = String(text || '').replace(/\s+/g, ' ').trim();
@@ -51,13 +52,19 @@ async function buildMemberPanel(interaction, member) {
         : 'None';
 
     const counts = infractions.getInfractionCount(member.id);
+    
+    // Récupérer les infos Roblox
+    const robloxData = roblox.getRobloxAccount(member.id);
+    const robloxInfo = robloxData && robloxData.verified
+        ? `**Username:** ${robloxData.robloxUsername}\n**Linked:** ${relative(robloxData.linkedAt)}`
+        : '**Status:** Not verified\nUse `/verify-roblox` to link';
 
     const embed = new EmbedBuilder()
         .setColor(isStaff ? COLORS.darkRed : COLORS.dark)
         .setTitle('Member Investigation')
         .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
         .addFields(
-            { name: 'User', value: member.user.tag + '\n' + member.user.id, inline: true },
+            { name: 'Discord User', value: member.user.tag + '\n' + member.user.id, inline: true },
             { name: 'Nickname', value: member.nickname || 'None', inline: true },
             { name: 'Bot', value: member.user.bot ? 'Yes' : 'No', inline: true },
             { name: 'Account Created', value: '<t:' + Math.floor(member.user.createdTimestamp / 1000) + ':R>', inline: true },
@@ -65,6 +72,7 @@ async function buildMemberPanel(interaction, member) {
             { name: 'Is Staff', value: isStaff ? 'Yes' : 'No', inline: true },
             { name: 'Current Timeout', value: timeoutInfo, inline: true },
             { name: 'Infractions', value: '**Total:** ' + counts.total + '\n**Active:** ' + counts.active + '\n**Revoked:** ' + counts.revoked, inline: true },
+            { name: 'Roblox Account', value: robloxInfo, inline: false },
             { name: 'Roles (' + member.roles.cache.size + ')', value: roles.substring(0, 1000), inline: false }
         )
         .setImage(BANNER_URL)
@@ -181,29 +189,20 @@ async function handleInteraction(interaction) {
             const value = interaction.values[0];
 
             if (value === 'mod_member_info') {
-                const userMenu = new UserSelectMenuBuilder()
-                    .setCustomId('mod_user_select')
-                    .setPlaceholder('Search and select a server member...')
-                    .setMinValues(1)
-                    .setMaxValues(1);
+                const modal = new ModalBuilder()
+                    .setCustomId('mod_member_info_modal')
+                    .setTitle('Member Investigation');
 
-                const embed = new EmbedBuilder()
-                    .setColor(COLORS.dark)
-                    .setTitle('Member Investigation')
-                    .setDescription(
-                        'Use the selector below to pick a member of this server.\n\n' +
-                        'You can type a username, a display name or paste an ID directly in the selector. ' +
-                        'Once a member is selected, the full profile and the moderation actions will be displayed.'
-                    )
-                    .setImage(BANNER_URL)
-                    .setFooter({ text: 'Jaxdrax Studio Investigation', iconURL: LOGO_URL })
-                    .setTimestamp();
+                const userInput = new TextInputBuilder()
+                    .setCustomId('mod_target')
+                    .setLabel('Member (Discord username, mention, ID, or Roblox username)')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('Ex: Username, @User, 123456789, or RobloxUsername')
+                    .setMaxLength(100)
+                    .setRequired(true);
 
-                return interaction.reply({
-                    embeds: [embed],
-                    components: [new ActionRowBuilder().addComponents(userMenu)],
-                    flags: MessageFlags.Ephemeral
-                });
+                modal.addComponents(new ActionRowBuilder().addComponents(userInput));
+                return interaction.showModal(modal);
             }
 
             if (value === 'mod_guides') {
@@ -235,6 +234,8 @@ async function handleInteraction(interaction) {
                 const all = infractions.loadInfractions();
                 const activeInfractions = all.filter(inf => !inf.revoked).length;
                 const revokedInfractions = all.filter(inf => inf.revoked).length;
+                const robloxData = roblox.loadRobloxData();
+                const linkedRoblox = Object.keys(robloxData).length;
 
                 const embed = new EmbedBuilder()
                     .setColor(COLORS.darkRed)
@@ -245,6 +246,7 @@ async function handleInteraction(interaction) {
                         { name: 'Channel Breakdown', value: '**Text Channels:** ' + guild.channels.cache.filter(c => c.type === 0).size + '\n**Voice Channels:** ' + guild.channels.cache.filter(c => c.type === 2).size + '\n**Categories:** ' + guild.channels.cache.filter(c => c.type === 4).size + '\n**Total Channels:** ' + guild.channels.cache.size, inline: true },
                         { name: 'Server Info', value: '**Roles:** ' + guild.roles.cache.size + '\n**Boost Level:** ' + guild.premiumTier + '\n**Boosts:** ' + (guild.premiumSubscriptionCount || 0) + '\n**Created:** <t:' + Math.floor(guild.createdTimestamp / 1000) + ':R>', inline: true },
                         { name: 'Infraction System', value: '**Total recorded:** ' + all.length + '\n**Active:** ' + activeInfractions + '\n**Revoked:** ' + revokedInfractions, inline: true },
+                        { name: 'Roblox Integration', value: '**Linked Accounts:** ' + linkedRoblox + '\n**Verification Rate:** ' + ((linkedRoblox / (totalMembers || 1)) * 100).toFixed(1) + '%', inline: true },
                         { name: 'Activity Metrics', value: '**Staff Ratio:** ' + ((staffCount / (totalMembers || 1)) * 100).toFixed(1) + '%\n**Verification Rate:** ' + ((verifiedCount / ((verifiedCount + unverifiedCount) || 1)) * 100).toFixed(1) + '%', inline: true }
                     )
                     .setImage(BANNER_URL)
@@ -260,7 +262,7 @@ async function handleInteraction(interaction) {
                     .setTitle('Recent Moderation Logs')
                     .setDescription('All server activity is automatically logged in the dev-logs channel.')
                     .addFields(
-                        { name: 'Logged Events', value: '• Member joins, leaves and profile updates\n• Message deletions, edits and bulk purges\n• Role creations, deletions and permission changes\n• Voice joins, leaves, moves, mute and deafen\n• Channel creations, deletions and updates\n• Bans, unbans and timeouts\n• Emoji, sticker, invite and thread changes\n• Infractions issued and revoked', inline: false },
+                        { name: 'Logged Events', value: '• Member joins, leaves and profile updates\n• Message deletions, edits and bulk purges\n• Role creations, deletions and permission changes\n• Voice joins, leaves, moves, mute and deafen\n• Channel creations, deletions and updates\n• Bans, unbans and timeouts\n• Emoji, sticker, invite and thread changes\n• Infractions issued and revoked\n• Roblox account verifications', inline: false },
                         { name: 'Log Retention', value: 'Logs are retained indefinitely in the dev-logs channel. For a detailed audit, open a ticket and request the specific time range.', inline: false }
                     )
                     .setImage(BANNER_URL)
@@ -293,17 +295,19 @@ async function handleInteraction(interaction) {
             return interaction.reply(payload);
         }
 
-        // ========== ANCIEN MODAL DE RECHERCHE (compatibilité) ==========
+        // ========== MODAL DE RECHERCHE ==========
         if (id === 'mod_member_info_modal' && interaction.isModalSubmit()) {
             const query = interaction.fields.getTextInputValue('mod_target');
             const clean = String(query).replace(/[<@!>]/g, '').trim();
 
             let member = null;
 
+            // Essayer de trouver par ID Discord
             if (/^\d{17,20}$/.test(clean)) {
                 member = await interaction.guild.members.fetch(clean).catch(() => null);
             }
 
+            // Essayer de trouver par username Discord
             if (!member) {
                 await interaction.guild.members.fetch().catch(() => {});
                 member = interaction.guild.members.cache.find(m =>
@@ -313,9 +317,17 @@ async function handleInteraction(interaction) {
                 ) || null;
             }
 
+            // Essayer de trouver par username Roblox
+            if (!member) {
+                const discordId = roblox.findDiscordIdByRobloxUsername(clean);
+                if (discordId) {
+                    member = await interaction.guild.members.fetch(discordId).catch(() => null);
+                }
+            }
+
             if (!member) {
                 return interaction.reply({
-                    content: 'Member not found. Use the member selector instead for a reliable lookup.',
+                    content: 'Member not found. Try searching by Discord username, mention, ID, or Roblox username.',
                     flags: MessageFlags.Ephemeral
                 });
             }
@@ -437,7 +449,7 @@ async function handleInteraction(interaction) {
             const payload = await buildInfractionList(interaction, targetId);
 
             return interaction.reply({
-                content: 'Infraction **' + infractionId + '** has been revoked.',
+                content: 'Infraction **' + infractionId + '** has been revoked.\n\n**Reason:** ' + revokeReason,
                 embeds: payload.embeds,
                 components: payload.components,
                 flags: MessageFlags.Ephemeral
