@@ -880,7 +880,7 @@ async function stats(){
     document.getElementById('sPing').textContent='—';
   }
 }
-stats();setInterval(stats,45000);
+stats();setInterval(stats, 120000);  // 2 minutes au lieu de 45 secondes
 
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 async function crew(){
