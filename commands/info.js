@@ -1,15 +1,9 @@
 const {
     SlashCommandBuilder,
-    ContainerBuilder,
-    SectionBuilder,
-    TextDisplayBuilder,
-    SeparatorBuilder,
-    ThumbnailBuilder,
-    MediaGalleryBuilder,
-    ActionsRowBuilder,
+    EmbedBuilder,
+    ActionRowBuilder,
     ButtonBuilder,
-    ButtonStyle,
-    MessageFlags
+    ButtonStyle
 } = require('discord.js');
 
 const { COLORS, LOGO_URL, BANNER_URL } = require('../config/constants');
@@ -26,84 +20,44 @@ module.exports = {
         const guild = interaction.guild;
         const createdAt = `<t:${Math.floor(guild.createdTimestamp / 1000)}:R>`;
 
-        // 1. Conteneur principal avec couleur d'accent
-        const container = new ContainerBuilder()
-            .setAccentColor(parseInt(COLORS.dark.replace('#', ''), 16));
-
-        // 2. Section d'en-tête avec le logo
-        const headerSection = new SectionBuilder()
-            .addTextDisplayComponents(
-                new TextDisplayBuilder().setContent('# Your Fish Life - Game Information')
-            )
-            .setThumbnailAccessory(
-                new ThumbnailBuilder().setURL(LOGO_URL)
-            );
-        container.addSectionComponents(headerSection);
-
-        // 3. Description principale
-        container.addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(
-                'Your Fish Life is an upcoming Roblox experience developed by **Jaxdrax Studio**. ' +
+        // 1. Création de l'embed
+        const embed = new EmbedBuilder()
+            .setColor(COLORS.dark)
+            .setTitle('Your Fish Life - Game Information')
+            .setDescription(
+                'Your Fish Life is an upcoming Roblox experience developed by Jaxdrax Studio. ' +
                 'Dive into a relaxing and immersive aquarium building simulation where you can ' +
                 'discover new fish species, customize your tanks, and connect with a growing community of players.'
             )
-        );
-
-        container.addSeparatorComponents(new SeparatorBuilder());
-
-        // 4. Informations du jeu
-        const infoSection = new SectionBuilder()
-            .addTextDisplayComponents(
-                new TextDisplayBuilder().setContent(
-                    `**Developer:** Jaxdrax Studio\n` +
-                    `**Status:** Active Development\n` +
-                    `**Platform:** Roblox (PC, Mobile, Console)`
-                )
-            );
-        container.addSectionComponents(infoSection);
-
-        container.addSeparatorComponents(new SeparatorBuilder());
-
-        // 5. Fonctionnalités principales
-        container.addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(
-                '## Core Features\n' +
-                '- **Aquarium Building:** Complete customization system with decorations, filters, and lighting options.\n' +
-                '- **Fish Discovery:** Over 100 unique species to discover, each with unique behaviors and requirements.\n' +
-                '- **Breeding System:** Advanced genetics-based breeding mechanics.\n' +
-                '- **Community Events:** Regular seasonal events with exclusive content.'
+            .addFields(
+                { name: 'Developer', value: 'Jaxdrax Studio', inline: true },
+                { name: 'Status', value: 'Active Development', inline: true },
+                { name: 'Platform', value: 'Roblox (PC, Mobile, Console)', inline: true },
+                { 
+                    name: 'Core Features', 
+                    value: 
+                        '• Aquarium Building: Complete customization system with decorations, filters, and lighting options.\n' +
+                        '• Fish Discovery: Over 100 unique species to discover, each with unique behaviors and requirements.\n' +
+                        '• Breeding System: Advanced genetics-based breeding mechanics.\n' +
+                        '• Community Events: Regular seasonal events with exclusive content.', 
+                    inline: false 
+                },
+                {
+                    name: 'Server Statistics',
+                    value: 
+                        `Members: ${guild.memberCount}\n` +
+                        `Roles: ${guild.roles.cache.size}\n` +
+                        `Channels: ${guild.channels.cache.size}\n` +
+                        `Server Created: ${createdAt}`,
+                    inline: false
+                }
             )
-        );
+            .setImage(BANNER_URL)
+            .setFooter({ text: 'Jaxdrax Studio Development Team', iconURL: LOGO_URL })
+            .setTimestamp();
 
-        container.addSeparatorComponents(new SeparatorBuilder());
-
-        // 6. Statistiques du serveur
-        container.addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(
-                `## Server Statistics\n` +
-                `**Members:** ${guild.memberCount}\n` +
-                `**Roles:** ${guild.roles.cache.size}\n` +
-                `**Channels:** ${guild.channels.cache.size}\n` +
-                `**Server Created:** ${createdAt}`
-            )
-        );
-
-        container.addSeparatorComponents(new SeparatorBuilder());
-
-        // 7. Bannière (Media Gallery)
-        container.addMediaGalleryComponents(
-            new MediaGalleryBuilder().addItems(
-                { url: BANNER_URL }
-            )
-        );
-
-        // 8. Texte de pied de page
-        container.addTextDisplayComponents(
-            new TextDisplayBuilder().setContent('*Jaxdrax Studio Development Team*')
-        );
-
-        // 9. Boutons dans une ActionsRow (Spécifique V2)
-        const actionsRow = new ActionsRowBuilder()
+        // 2. Première rangée de boutons (Actions internes)
+        const row1 = new ActionRowBuilder()
             .addComponents(
                 new ButtonBuilder()
                     .setCustomId('info_view_license')
@@ -112,17 +66,22 @@ module.exports = {
                 new ButtonBuilder()
                     .setCustomId('info_open_ticket')
                     .setLabel('Open Support Ticket')
-                    .setStyle(ButtonStyle.Primary),
+                    .setStyle(ButtonStyle.Primary)
+            );
+
+        // 3. Deuxième rangée de boutons (Lien externe)
+        const row2 = new ActionRowBuilder()
+            .addComponents(
                 new ButtonBuilder()
                     .setLabel('Visit Website')
                     .setURL('https://jaxdrax-studio.canner.app/')
                     .setStyle(ButtonStyle.Link)
             );
 
-        // 10. Envoi avec le flag IsComponentsV2 obligatoire
-        await interaction.reply({
-            components: [container, actionsRow],
-            flags: MessageFlags.IsComponentsV2
+        // 4. Envoi du tout dans un seul message uni
+        await interaction.reply({ 
+            embeds: [embed], 
+            components: [row1, row2] 
         });
     }
 };
